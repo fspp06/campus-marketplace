@@ -169,9 +169,14 @@ public final class MarketplaceFrame extends JFrame {
         JPasswordField password = new JPasswordField(22); JComboBox<Integer> year = new JComboBox<>(new Integer[]{1, 2, 3, 4, 5, 6});
         styleInput(name); styleInput(email); styleInput(studentId); styleInput(department); styleInput(password); year.setPreferredSize(new Dimension(220, 38));
         JPanel form = new JPanel(new GridLayout(signup ? 6 : 2, 2, 10, 12)); form.setBorder(new EmptyBorder(12, 8, 8, 8));
-        if (signup) { form.add(new JLabel("Name")); form.add(name); }
-        form.add(new JLabel("Email")); form.add(email); form.add(new JLabel("Password")); form.add(password);
-        if (signup) { form.add(new JLabel("Student ID")); form.add(studentId); form.add(new JLabel("Department")); form.add(department); form.add(new JLabel("Year")); form.add(year); }
+        if (signup) { JLabel lName = new JLabel("Name"); lName.setLabelFor(name); form.add(lName); form.add(name); }
+        JLabel lEmail = new JLabel("Email"); lEmail.setLabelFor(email); form.add(lEmail); form.add(email);
+        JLabel lPassword = new JLabel("Password"); lPassword.setLabelFor(password); form.add(lPassword); form.add(password);
+        if (signup) {
+            JLabel lStudentId = new JLabel("Student ID"); lStudentId.setLabelFor(studentId); form.add(lStudentId); form.add(studentId);
+            JLabel lDept = new JLabel("Department"); lDept.setLabelFor(department); form.add(lDept); form.add(department);
+            JLabel lYear = new JLabel("Year"); lYear.setLabelFor(year); form.add(lYear); form.add(year);
+        }
         int result = JOptionPane.showConfirmDialog(this, form, signup ? "Create your account" : "Welcome back", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) return;
         try { if (signup) service.signUp(name.getText(), email.getText(), new String(password.getPassword()), studentId.getText(), department.getText(), (Integer) year.getSelectedItem()); else service.logIn(email.getText(), new String(password.getPassword())); refreshAll(); cards.show(root, "market"); }
@@ -220,17 +225,24 @@ public final class MarketplaceFrame extends JFrame {
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 7, 0)); actions.setOpaque(false);
         if (p.getSeller().equals(service.currentUser())) {
             if (p.getStatus().name().equals("AVAILABLE")) {
-                JButton edit = smallButton("Edit", false), remove = smallButton("Remove", false); edit.addActionListener(e -> productDialog(p)); remove.addActionListener(e -> confirmRemove(p)); actions.add(edit); actions.add(remove);
+                JButton edit = smallButton("Edit", false), remove = smallButton("Remove", false);
+                edit.setToolTipText("Edit this listing"); remove.setToolTipText("Permanently remove this listing");
+                edit.addActionListener(e -> productDialog(p)); remove.addActionListener(e -> confirmRemove(p)); actions.add(edit); actions.add(remove);
             } else {
                 JLabel sold = label("Sold", 12, true, new Color(172, 76, 45)); actions.add(sold);
             }
         } else if (p.getStatus().name().equals("AVAILABLE")) {
-            JButton save = smallButton(service.isWishlisted(p.getId()) ? "♥ Saved" : "♡ Save", false); save.addActionListener(e -> toggleWishlist(p));
-            JButton buy = smallButton("Buy · COD", true); buy.addActionListener(e -> checkoutDialog(p)); actions.add(save); actions.add(buy);
+            boolean isSaved = service.isWishlisted(p.getId());
+            JButton save = smallButton(isSaved ? "♥ Saved" : "♡ Save", false);
+            save.setToolTipText(isSaved ? "Remove from your wishlist" : "Add to your wishlist");
+            save.addActionListener(e -> toggleWishlist(p));
+            JButton buy = smallButton("Buy · COD", true);
+            buy.setToolTipText("Place a cash-on-delivery order for this item");
+            buy.addActionListener(e -> checkoutDialog(p)); actions.add(save); actions.add(buy);
         } else {
             actions.add(label("No longer available", 12, true, new Color(172, 76, 45)));
         }
-        JButton view = smallButton("Details", false); view.addActionListener(e -> showProduct(p)); actions.add(view); details.add(actions); card.add(details, BorderLayout.CENTER); return card;
+        JButton view = smallButton("Details", false); view.setToolTipText("View full details of this item"); view.addActionListener(e -> showProduct(p)); actions.add(view); details.add(actions); card.add(details, BorderLayout.CENTER); return card;
     }
 
     private void productDialog(Product existing) {
@@ -254,7 +266,7 @@ public final class MarketplaceFrame extends JFrame {
         try { double amount = Double.parseDouble(price.getText().trim()); if (editing) service.editProduct(existing.getId(), name.getText(), amount, description.getText(), (Category) category.getSelectedItem(), image[0]); else service.addProduct(name.getText(), amount, description.getText(), (Category) category.getSelectedItem(), image[0]); refreshAll(); }
         catch (RuntimeException ex) { error(ex); }
     }
-    private void addField(JPanel panel, GridBagConstraints c, int row, String title, JComponent input) { c.gridx=0; c.gridy=row; c.gridwidth=1; c.weightx=0; panel.add(label(title, 12, true, INK), c); c.gridx=1; c.weightx=1; panel.add(input, c); }
+    private void addField(JPanel panel, GridBagConstraints c, int row, String title, JComponent input) { c.gridx=0; c.gridy=row; c.gridwidth=1; c.weightx=0; JLabel l = label(title, 12, true, INK); l.setLabelFor(input); panel.add(l, c); c.gridx=1; c.weightx=1; panel.add(input, c); }
     private void showProduct(Product p) {
         JDialog dialog = new JDialog(this, p.getName(), true); dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         JPanel content = new JPanel(new GridLayout(1, 2, 25, 0)); content.setBackground(Color.WHITE); content.setBorder(new EmptyBorder(26, 26, 24, 26));
