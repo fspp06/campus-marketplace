@@ -57,13 +57,13 @@ public final class MarketplaceService {
         Product dsNotes = new Product(maya, "Data Structures Exam Revision Notes", 180, "Complete printed notes with algorithm diagrams and handwritten solutions for semester exams", books, bundledImage("java-textbook.png"), true, "Willing to swap for Operating Systems notes");
         repository.addProduct(dsNotes);
 
-        Product mayaLabCoat = new Product(maya, "White Chemistry Lab Coat (Size M)", 220, "100% cotton laboratory coat with pocket protector, used for one semester in lab", labTools, bundledImage("campus-backpack.png"));
+        Product mayaLabCoat = new Product(maya, "White Chemistry Lab Coat (Size M)", 220, "100% cotton laboratory coat with pocket protector, used for one semester in lab", labTools, bundledImage("lab-coat.jpg"));
         repository.addProduct(mayaLabCoat);
 
         Product mayaCalculus = new Product(maya, "Engineering Mathematics & Calculus", 310, "Standard university textbook with solved problems and practice exercises", books, bundledImage("java-textbook.png"), true, "Open to swap for Discrete Math or Physics book");
         repository.addProduct(mayaCalculus);
 
-        Product mayaBottle = new Product(maya, "Insulated Stainless Steel Bottle (1L)", 260, "Double-wall vacuum flask keeps water cold for 18h during lectures", other, bundledImage("electric-kettle.png"));
+        Product mayaBottle = new Product(maya, "Insulated Stainless Steel Bottle (1L)", 260, "Double-wall vacuum flask keeps water cold for 18h during lectures", other, bundledImage("water-bottle.jpg"));
         repository.addProduct(mayaBottle);
 
         Product mouse = new Product(arjun, "Wireless Optical Mouse", 450, "2.4GHz wireless ergonomic mouse with nano USB receiver, silent clicks", electronics, bundledImage("wireless-mouse.png"), true, "Open to swap for USB-C adapter or earphones");
@@ -90,10 +90,10 @@ public final class MarketplaceService {
         Product kettle = new Product(rohan, "Dorm Electric Kettle (1.5L)", 550, "Fast-boiling stainless steel cordless kettle, auto shut-off, ideal for hostel dorms", hostel, bundledImage("electric-kettle.png"));
         repository.addProduct(kettle);
 
-        Product badminton = new Product(rohan, "Yonex Badminton Racket Set", 390, "Pair of carbon-aluminum rackets with 3 nylon shuttlecocks and carry bag. Great for hostel court", sports, bundledImage("campus-backpack.png"), true, "Open to swap for gym resistance bands");
+        Product badminton = new Product(rohan, "Yonex Badminton Racket Set", 390, "Pair of carbon-aluminum rackets with 3 nylon shuttlecocks and carry bag. Great for hostel court", sports, bundledImage("badminton-racket.jpg"), true, "Open to swap for gym resistance bands");
         repository.addProduct(badminton);
 
-        Product rohanYogaMat = new Product(rohan, "Non-Slip Exercise & Yoga Mat (6mm)", 290, "Thick cushioned workout mat for hostel room, includes carrying strap", sports, bundledImage("campus-backpack.png"), true, "Open to swap for gym hand gripper");
+        Product rohanYogaMat = new Product(rohan, "Non-Slip Exercise & Yoga Mat (6mm)", 290, "Thick cushioned workout mat for hostel room, includes carrying strap", sports, bundledImage("yoga-mat.jpg"), true, "Open to swap for gym hand gripper");
         repository.addProduct(rohanYogaMat);
 
         Product rohanPowerStrip = new Product(rohan, "Surge Protector 4-Socket Power Strip", 320, "2m heavy-duty cord with master switch, essential for hostel desks", electronics, bundledImage("wireless-mouse.png"));
@@ -117,7 +117,7 @@ public final class MarketplaceService {
         Product snehaDeskMat = new Product(sneha, "Extended Desk Mat & Mousepad", 260, "Anti-fray stitched edge XXL desk pad with non-slip rubber base", electronics, bundledImage("wireless-mouse.png"));
         repository.addProduct(snehaDeskMat);
 
-        Product snehaShaker = new Product(sneha, "Sports Shaker Bottle with Mixer Ball", 180, "BPA-free protein shaker bottle with leak-proof flip cap, 700ml", sports, bundledImage("electric-kettle.png"));
+        Product snehaShaker = new Product(sneha, "Sports Shaker Bottle with Mixer Ball", 180, "BPA-free protein shaker bottle with leak-proof flip cap, 700ml", sports, bundledImage("water-bottle.jpg"));
         repository.addProduct(snehaShaker);
 
         // Pre-populate Wishlist for all starter students
