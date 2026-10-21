@@ -1,7 +1,10 @@
 package edu.campusmarketplace.model;
 
 import edu.campusmarketplace.enums.ProductStatus;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.util.UUID;
+import javax.imageio.ImageIO;
 
 public final class Product {
     private final UUID id;
@@ -11,6 +14,7 @@ public final class Product {
     private Category category;
     private ProductStatus status = ProductStatus.AVAILABLE;
     private byte[] imageBytes;
+    private transient BufferedImage cachedImage;
     private boolean openToExchange = false;
     private String exchangePreference = "";
 
@@ -45,6 +49,16 @@ public final class Product {
     public Category getCategory() { return category; }
     public ProductStatus getStatus() { return status; }
     public byte[] getImageBytes() { return imageBytes == null ? null : imageBytes.clone(); }
+
+    public BufferedImage getCachedImage() {
+        if (cachedImage == null && imageBytes != null && imageBytes.length > 0) {
+            try {
+                cachedImage = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            } catch (Exception ignored) {}
+        }
+        return cachedImage;
+    }
+
     public boolean isOpenToExchange() { return openToExchange; }
     public String getExchangePreference() { return exchangePreference == null ? "" : exchangePreference; }
 
@@ -66,6 +80,7 @@ public final class Product {
         this.description = description == null ? "" : description.trim();
         this.category = category;
         this.imageBytes = imageBytes == null ? null : imageBytes.clone();
+        this.cachedImage = null;
     }
 
     public void markSold() {

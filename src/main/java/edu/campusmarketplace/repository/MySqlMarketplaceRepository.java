@@ -24,6 +24,21 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
     private final Map<UUID, Order> orders = new ConcurrentHashMap<>();
     private final Map<UUID, Review> reviews = new ConcurrentHashMap<>();
 
+    private final java.util.concurrent.ExecutorService dbExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "MySQL-AsyncWriter");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private Connection writeConnection;
+
+    private synchronized Connection getWriteConnection() throws SQLException {
+        if (writeConnection == null || writeConnection.isClosed() || !writeConnection.isValid(2)) {
+            writeConnection = getConnection();
+        }
+        return writeConnection;
+    }
+
     public MySqlMarketplaceRepository() throws SQLException {
         Properties props = new Properties();
         try (InputStream in = getClass().getResourceAsStream("/db.properties")) {
@@ -237,20 +252,24 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE name=VALUES(name), password=VALUES(password), department=VALUES(department), year=VALUES(year), phone_number=VALUES(phone_number)";
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, student.getId().toString());
-            ps.setString(2, student.getName());
-            ps.setString(3, student.getEmail());
-            ps.setString(4, "campus123");
-            ps.setString(5, student.getStudentId());
-            ps.setString(6, student.getDepartment());
-            ps.setInt(7, student.getYear());
-            ps.setString(8, student.getPhoneNumber());
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        dbExecutor.submit(() -> {
+            try {
+                Connection conn = getWriteConnection();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, student.getId().toString());
+                    ps.setString(2, student.getName());
+                    ps.setString(3, student.getEmail());
+                    ps.setString(4, "campus123");
+                    ps.setString(5, student.getStudentId());
+                    ps.setString(6, student.getDepartment());
+                    ps.setInt(7, student.getYear());
+                    ps.setString(8, student.getPhoneNumber());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override
@@ -285,28 +304,33 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
             addStudent(product.getSeller());
         }
 
+        final UUID finalSellerId = sellerId;
         String sql = "INSERT INTO products (id, seller_id, name, price, description, category_name, status, image_bytes, open_to_exchange, exchange_preference) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE name=VALUES(name), price=VALUES(price), description=VALUES(description), " +
                 "category_name=VALUES(category_name), status=VALUES(status), image_bytes=VALUES(image_bytes), " +
                 "open_to_exchange=VALUES(open_to_exchange), exchange_preference=VALUES(exchange_preference)";
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, product.getId().toString());
-            ps.setString(2, sellerId.toString());
-            ps.setString(3, product.getName());
-            ps.setDouble(4, product.getPrice());
-            ps.setString(5, product.getDescription());
-            ps.setString(6, product.getCategory().name());
-            ps.setString(7, product.getStatus().name());
-            ps.setBytes(8, product.getImageBytes());
-            ps.setBoolean(9, product.isOpenToExchange());
-            ps.setString(10, product.getExchangePreference());
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        dbExecutor.submit(() -> {
+            try {
+                Connection conn = getWriteConnection();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, product.getId().toString());
+                    ps.setString(2, finalSellerId.toString());
+                    ps.setString(3, product.getName());
+                    ps.setDouble(4, product.getPrice());
+                    ps.setString(5, product.getDescription());
+                    ps.setString(6, product.getCategory().name());
+                    ps.setString(7, product.getStatus().name());
+                    ps.setBytes(8, product.getImageBytes());
+                    ps.setBoolean(9, product.isOpenToExchange());
+                    ps.setString(10, product.getExchangePreference());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override
@@ -322,14 +346,17 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
     @Override
     public void removeProduct(UUID id) {
         products.remove(id);
-        String sql = "DELETE FROM products WHERE id = ?";
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, id.toString());
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        dbExecutor.submit(() -> {
+            try {
+                Connection conn = getWriteConnection();
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM products WHERE id = ?")) {
+                    ps.setString(1, id.toString());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override
@@ -347,30 +374,44 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
         if (regSeller.isPresent()) sellerId = regSeller.get().getId();
         else addStudent(order.getSeller());
 
-        String sql = "INSERT INTO orders (id, product_id, buyer_id, seller_id, offered_product_id, meetup_notes, status, total) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
-                "ON DUPLICATE KEY UPDATE status=VALUES(status)";
+        final UUID finalBuyerId = buyerId;
+        final UUID finalSellerId = sellerId;
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, order.getId().toString());
-            ps.setString(2, order.getProduct().getId().toString());
-            ps.setString(3, buyerId.toString());
-            ps.setString(4, sellerId.toString());
-            ps.setString(5, order.getOfferedProduct() != null ? order.getOfferedProduct().getId().toString() : null);
-            ps.setString(6, order.getMeetupNotes());
-            ps.setString(7, order.getStatus().name());
-            ps.setDouble(8, order.getTotal());
-            ps.executeUpdate();
+        dbExecutor.submit(() -> {
+            String sql = "INSERT INTO orders (id, product_id, buyer_id, seller_id, offered_product_id, meetup_notes, status, total) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE status=VALUES(status)";
 
-            // Also update product status in DB
-            addProduct(order.getProduct());
-            if (order.getOfferedProduct() != null) {
-                addProduct(order.getOfferedProduct());
+            try {
+                Connection conn = getWriteConnection();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, order.getId().toString());
+                    ps.setString(2, order.getProduct().getId().toString());
+                    ps.setString(3, finalBuyerId.toString());
+                    ps.setString(4, finalSellerId.toString());
+                    ps.setString(5, order.getOfferedProduct() != null ? order.getOfferedProduct().getId().toString() : null);
+                    ps.setString(6, order.getMeetupNotes());
+                    ps.setString(7, order.getStatus().name());
+                    ps.setDouble(8, order.getTotal());
+                    ps.executeUpdate();
+                }
+
+                // Fast status update without re-uploading large image bytes
+                try (PreparedStatement psStatus = conn.prepareStatement("UPDATE products SET status = ? WHERE id = ?")) {
+                    psStatus.setString(1, order.getProduct().getStatus().name());
+                    psStatus.setString(2, order.getProduct().getId().toString());
+                    psStatus.executeUpdate();
+
+                    if (order.getOfferedProduct() != null) {
+                        psStatus.setString(1, order.getOfferedProduct().getStatus().name());
+                        psStatus.setString(2, order.getOfferedProduct().getId().toString());
+                        psStatus.executeUpdate();
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        });
     }
 
     @Override
@@ -393,22 +434,28 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
         if (regReviewer.isPresent()) reviewerId = regReviewer.get().getId();
         else addStudent(review.getReviewer());
 
-        String sql = "INSERT INTO reviews (id, seller_id, reviewer_id, product_id, rating, comment, badges) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        final UUID finalSellerId = sellerId;
+        final UUID finalReviewerId = reviewerId;
 
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, review.getId().toString());
-            ps.setString(2, sellerId.toString());
-            ps.setString(3, reviewerId.toString());
-            ps.setString(4, review.getProduct().getId().toString());
-            ps.setInt(5, review.getRating());
-            ps.setString(6, review.getComment());
-            ps.setString(7, String.join("|", review.getTags()));
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        dbExecutor.submit(() -> {
+            String sql = "INSERT INTO reviews (id, seller_id, reviewer_id, product_id, rating, comment, badges) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)";
+            try {
+                Connection conn = getWriteConnection();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, review.getId().toString());
+                    ps.setString(2, finalSellerId.toString());
+                    ps.setString(3, finalReviewerId.toString());
+                    ps.setString(4, review.getProduct().getId().toString());
+                    ps.setInt(5, review.getRating());
+                    ps.setString(6, review.getComment());
+                    ps.setString(7, String.join("|", review.getTags()));
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Override

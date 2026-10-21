@@ -471,7 +471,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         preview.setPreferredSize(new Dimension(310, 0));
         preview.setBorder(new EmptyBorder(16, 16, 16, 16));
 
-        selectedOrderImage = photoThumbnailLabel(null, 278, 160);
+        selectedOrderImage = photoThumbnailLabel((BufferedImage) null, 278, 160);
         selectedOrderTitle = UITheme.label("Select an order", 17f, true, UITheme.TEXT_MAIN);
         selectedOrderMeta = UITheme.label("Choose an order to view its item details.", 12.5f, false, UITheme.TEXT_MUTED);
 
@@ -823,7 +823,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         content.setBorder(new EmptyBorder(28, 28, 26, 28));
 
         // Left Image Preview
-        JLabel imageLabel = photoThumbnailLabel(p.getImageBytes(), 390, 400);
+        JLabel imageLabel = photoThumbnailLabel(p.getCachedImage(), 390, 400);
         content.add(imageLabel);
 
         // Right Product Details
@@ -1247,7 +1247,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         UITheme.CardPanel summary = new UITheme.CardPanel(14, new Color(0xF9, 0xFA, 0xFB), UITheme.BORDER);
         summary.setLayout(new BorderLayout(16, 0));
         summary.setBorder(new EmptyBorder(14, 14, 14, 14));
-        summary.add(photoThumbnailLabel(p.getImageBytes(), 170, 130), BorderLayout.WEST);
+        summary.add(photoThumbnailLabel(p.getCachedImage(), 170, 130), BorderLayout.WEST);
 
         JPanel copy = new JPanel();
         copy.setOpaque(false);
@@ -1729,7 +1729,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         try {
             Order order = getSelectedOrder();
             Product product = order.getProduct();
-            setPhotoThumbnail(selectedOrderImage, product.getImageBytes(), 278, 160, "No product photo");
+            setPhotoThumbnail(selectedOrderImage, product.getCachedImage(), 278, 160, "No product photo");
             selectedOrderTitle.setText(product.getName());
             if (order.isExchange()) {
                 selectedOrderMeta.setText("Campus Swap Deal  \u00B7  Status: " + order.getStatus());
@@ -1749,7 +1749,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
     private void clearOrderPreview() {
         if (selectedOrderImage == null) return;
-        setPhotoThumbnail(selectedOrderImage, null, 278, 160, "Select an order");
+        setPhotoThumbnail(selectedOrderImage, (BufferedImage) null, 278, 160, "Select an order");
         selectedOrderTitle.setText("Select an order");
         selectedOrderMeta.setText("Choose an order to view its item details.");
         selectedOrderDescription.setText("");
@@ -1839,6 +1839,27 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         label.setBorder(UITheme.roundedBorder(10, UITheme.BORDER, 1));
         setPhotoThumbnail(label, bytes, width, height, "No photo");
         return label;
+    }
+
+    private JLabel photoThumbnailLabel(BufferedImage img, int width, int height) {
+        JLabel label = new JLabel("No photo", SwingConstants.CENTER);
+        label.setOpaque(true);
+        label.setBackground(new Color(0xF3, 0xF4, 0xF6));
+        label.setForeground(UITheme.TEXT_MUTED);
+        label.setPreferredSize(new Dimension(width, height));
+        label.setFont(UITheme.regular(12f));
+        label.setBorder(UITheme.roundedBorder(10, UITheme.BORDER, 1));
+        setPhotoThumbnail(label, img, width, height, "No photo");
+        return label;
+    }
+
+    private void setPhotoThumbnail(JLabel label, BufferedImage img, int width, int height, String emptyText) {
+        label.setIcon(null);
+        label.setText(emptyText);
+        if (img != null) {
+            label.setIcon(createScaledIcon(img, width, height));
+            label.setText("");
+        }
     }
 
     private void setPhotoThumbnail(JLabel label, byte[] bytes, int width, int height, String emptyText) {

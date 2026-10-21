@@ -45,7 +45,7 @@ public class ProductCardPanel extends UITheme.CardPanel {
         setLayout(new BorderLayout(0, 0));
 
         // 1. Image Thumbnail
-        add(new ThumbnailPanel(product.getImageBytes()), BorderLayout.NORTH);
+        add(new ThumbnailPanel(product), BorderLayout.NORTH);
 
         // 2. Card Body
         add(buildBodyPanel(), BorderLayout.CENTER);
@@ -213,15 +213,10 @@ public class ProductCardPanel extends UITheme.CardPanel {
     private static class ThumbnailPanel extends JPanel {
         private final BufferedImage cachedImage;
 
-        public ThumbnailPanel(byte[] imageBytes) {
+        public ThumbnailPanel(Product product) {
             setPreferredSize(new Dimension(CARD_WIDTH, THUMBNAIL_HEIGHT));
             setOpaque(false);
-            BufferedImage loaded = null;
-            if (imageBytes != null && imageBytes.length > 0) {
-                try { loaded = ImageIO.read(new ByteArrayInputStream(imageBytes)); }
-                catch (Exception ignored) { }
-            }
-            cachedImage = loaded;
+            this.cachedImage = product != null ? product.getCachedImage() : null;
         }
 
         @Override
