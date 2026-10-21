@@ -17,4 +17,8 @@ public interface MarketplaceRepository {
     void removeProduct(UUID id);
     void addOrder(Order order);
     List<Order> orders();
+    void addReview(Review review);
+    List<Review> reviews();
+    List<Review> reviewsByProduct(UUID productId);
+    List<Review> reviewsBySeller(UUID sellerId);
 }

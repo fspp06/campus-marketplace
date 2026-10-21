@@ -74,9 +74,20 @@ public final class UITheme {
         return font(size, Font.BOLD);
     }
 
+    public static Font symbolFont(float size, int style) {
+        return new Font("Segoe UI Symbol", style, (int) size);
+    }
+
     public static JLabel label(String text, float size, boolean bold, Color color) {
         JLabel l = new JLabel(text);
         l.setFont(font(size, bold ? Font.BOLD : Font.PLAIN));
+        l.setForeground(color);
+        return l;
+    }
+
+    public static JLabel symbolLabel(String text, float size, boolean bold, Color color) {
+        JLabel l = new JLabel(text);
+        l.setFont(symbolFont(size, bold ? Font.BOLD : Font.PLAIN));
         l.setForeground(color);
         return l;
     }

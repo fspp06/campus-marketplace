@@ -2,6 +2,7 @@ package edu.campusmarketplace.ui;
 
 import edu.campusmarketplace.model.Category;
 import edu.campusmarketplace.model.Product;
+import edu.campusmarketplace.model.Review;
 import edu.campusmarketplace.model.Student;
 import edu.campusmarketplace.service.MarketplaceService;
 
@@ -24,6 +25,7 @@ public class BrowseProductsPanel extends JPanel {
 
     private UITheme.SearchTextField searchField;
     private JComboBox<String> categoryFilter;
+    private JCheckBox onlySwapFilter;
     private JPanel cardsGrid;
     private JLabel countLabel;
 
@@ -80,7 +82,7 @@ public class BrowseProductsPanel extends JPanel {
         categoryFilter.setFont(UITheme.medium(13f));
         categoryFilter.setBackground(UITheme.SURFACE);
         categoryFilter.setForeground(UITheme.TEXT_MAIN);
-        categoryFilter.setPreferredSize(new Dimension(170, 40));
+        categoryFilter.setPreferredSize(new Dimension(220, 40));
         categoryFilter.setFocusable(false);
         categoryFilter.setBorder(UITheme.roundedBorder(8, UITheme.BORDER, 1));
         categoryFilter.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -90,11 +92,21 @@ public class BrowseProductsPanel extends JPanel {
             categoryFilter.addItem(c.name());
         }
 
+        onlySwapFilter = new JCheckBox("Swaps only");
+        onlySwapFilter.setFont(UITheme.medium(12.5f));
+        onlySwapFilter.setForeground(UITheme.TEXT_MAIN);
+        onlySwapFilter.setOpaque(false);
+        onlySwapFilter.setFocusPainted(false);
+        onlySwapFilter.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        onlySwapFilter.setToolTipText("Filter listings open to barter / swap");
+        onlySwapFilter.addActionListener(e -> refresh());
+
         leftControls.add(searchField);
         leftControls.add(categoryFilter);
+        leftControls.add(onlySwapFilter);
 
         // Right Control: "+ Sell an item" Primary Button
-        UITheme.ModernButton sellBtn = new UITheme.ModernButton("＋  Sell an item", UITheme.ButtonStyle.PRIMARY);
+        UITheme.ModernButton sellBtn = new UITheme.ModernButton("+  Sell an item", UITheme.ButtonStyle.PRIMARY);
         sellBtn.setPreferredSize(new Dimension(150, 40));
         sellBtn.setToolTipText("List an item for other students to buy");
         sellBtn.addActionListener(e -> {
@@ -141,32 +153,30 @@ public class BrowseProductsPanel extends JPanel {
 
         String query = searchField.getText().trim().toLowerCase();
         String selectedCat = (String) categoryFilter.getSelectedItem();
+        boolean swapsOnly = onlySwapFilter != null && onlySwapFilter.isSelected();
         Student currentUser = service.currentUser();
 
         int displayedCount = 0;
         for (Product product : service.products()) {
-            // Text search
+            if (swapsOnly && !product.isOpenToExchange()) continue;
+
+            // Text search across name, description, category
             String searchCorpus = (product.getName() + " " + product.getDescription() + " " + product.getCategory().name()).toLowerCase();
-            if (!query.isEmpty() && !searchCorpus.contains(query)) {
-                continue;
-            }
+            if (!query.isEmpty() && !searchCorpus.contains(query)) continue;
 
             // Category filter
-            if (selectedCat != null && !selectedCat.equals("All categories") && !product.getCategory().name().equalsIgnoreCase(selectedCat)) {
-                continue;
-            }
+            if (selectedCat != null && !selectedCat.equals("All categories")
+                    && !product.getCategory().name().equalsIgnoreCase(selectedCat)) continue;
 
             boolean isSaved = service.isWishlisted(product.getId());
-            ProductCardPanel card = new ProductCardPanel(product, currentUser, isSaved, cardListener);
+            List<Review> reviews = service.reviewsForSeller(product.getSeller().getId());
+            ProductCardPanel card = new ProductCardPanel(product, currentUser, isSaved, cardListener, reviews);
             cardsGrid.add(card);
             displayedCount++;
         }
 
         countLabel.setText(displayedCount + (displayedCount == 1 ? " listing" : " listings"));
-
-        if (displayedCount == 0) {
-            cardsGrid.add(buildEmptyState(query, selectedCat));
-        }
+        if (displayedCount == 0) cardsGrid.add(buildEmptyState(query, selectedCat));
 
         cardsGrid.revalidate();
         cardsGrid.repaint();
@@ -178,7 +188,7 @@ public class BrowseProductsPanel extends JPanel {
         emptyCard.setPreferredSize(new Dimension(520, 220));
         emptyCard.setBorder(new EmptyBorder(28, 32, 28, 32));
 
-        JLabel icon = UITheme.label("🔍", 32f, false, UITheme.TEXT_MUTED);
+        UITheme.BadgeLabel icon = new UITheme.BadgeLabel("NO MATCHES", UITheme.TAG_TEXT, UITheme.TAG_BG);
         icon.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel msg = UITheme.label("No listings found", 18f, true, UITheme.TEXT_MAIN);
@@ -195,6 +205,8 @@ public class BrowseProductsPanel extends JPanel {
         reset.addActionListener(e -> {
             searchField.setText("");
             categoryFilter.setSelectedIndex(0);
+            if (onlySwapFilter != null) onlySwapFilter.setSelected(false);
+            refresh();
         });
 
         emptyCard.add(icon);

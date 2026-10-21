@@ -22,4 +22,16 @@ public abstract class User {
     public String getName() { return name; }
     public String getEmail() { return email; }
     public boolean passwordMatches(String candidate) { return password.equals(candidate); }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User user)) return false;
+        return email != null && email.equalsIgnoreCase(user.email);
+    }
+
+    @Override
+    public int hashCode() {
+        return email == null ? 0 : email.toLowerCase().hashCode();
+    }
 }

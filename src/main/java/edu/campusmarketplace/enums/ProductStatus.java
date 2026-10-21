@@ -1,2 +1,7 @@
 package edu.campusmarketplace.enums;
-public enum ProductStatus { AVAILABLE, SOLD }
+
+public enum ProductStatus {
+    AVAILABLE,
+    SOLD,
+    EXCHANGED
+}

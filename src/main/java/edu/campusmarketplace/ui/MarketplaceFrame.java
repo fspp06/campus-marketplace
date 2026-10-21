@@ -37,6 +37,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
     private SegmentedNavBar navBar;
 
     // Content Panels
+    private HomePanel homePanel;
     private BrowseProductsPanel browsePanel;
     private JPanel wishlistGrid;
     private JPanel myListingsGrid;
@@ -45,7 +46,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
     // Orders components
     private final DefaultTableModel ordersModel = new DefaultTableModel(
-            new Object[]{"Product", "Other student", "Role", "Total (₹)", "Status", "Order ID"}, 0) {
+            new Object[]{"Product", "Other student", "Role", "Total (\u20B9)", "Status", "Order ID"}, 0) {
         @Override public boolean isCellEditable(int row, int column) { return false; }
     };
     private JTable ordersTable;
@@ -58,6 +59,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
     private JLabel profileName;
     private JLabel profileEmail;
     private JLabel profileStudentDetails;
+    private JLabel profileReputation;
 
     public MarketplaceFrame(MarketplaceService service) {
         super("Campus Market");
@@ -120,7 +122,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         hero.add(Box.createVerticalStrut(18));
         hero.add(blurb);
         hero.add(Box.createVerticalGlue());
-        hero.add(UITheme.label("Safe · Cash on Delivery · Student-to-Student", 12f, false, new Color(0xA7, 0xF3, 0xD0)));
+        hero.add(UITheme.label("Safe \u00B7 Cash on Delivery \u00B7 Student-to-Student", 12f, false, new Color(0xA7, 0xF3, 0xD0)));
 
         // Right Action Pane
         JPanel actions = new JPanel();
@@ -148,22 +150,11 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         actions.add(login);
         actions.add(Box.createVerticalStrut(12));
         actions.add(signup);
-        actions.add(Box.createVerticalStrut(26));
+        actions.add(Box.createVerticalGlue());
 
-        // Starter Accounts Callout
-        UITheme.CardPanel access = new UITheme.CardPanel(10, new Color(0xF9, 0xFA, 0xFB), UITheme.BORDER);
-        access.setLayout(new BoxLayout(access, BoxLayout.Y_AXIS));
-        access.setBorder(new EmptyBorder(14, 16, 14, 16));
-        access.setMaximumSize(new Dimension(Short.MAX_VALUE, 110));
-
-        access.add(UITheme.label("DEMO STARTER ACCOUNTS", 11f, true, UITheme.PRIMARY));
-        access.add(Box.createVerticalStrut(6));
-        access.add(UITheme.label("maya@campus.local  ·  campus123", 12f, false, UITheme.TEXT_MAIN));
-        access.add(Box.createVerticalStrut(4));
-        access.add(UITheme.label("arjun@campus.local  ·  campus123", 12f, false, UITheme.TEXT_MAIN));
-        access.add(Box.createVerticalStrut(8));
-        access.add(UITheme.label("Data resets when you close the app.", 11f, false, UITheme.TEXT_MUTED));
-        actions.add(access);
+        JLabel footerNote = UITheme.label("Safe, verified student-to-student marketplace", 12f, false, UITheme.TEXT_MUTED);
+        footerNote.setAlignmentX(Component.CENTER_ALIGNMENT);
+        actions.add(footerNote);
 
         card.add(hero);
         card.add(actions);
@@ -259,7 +250,18 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         topHeader.add(userBox, BorderLayout.EAST);
 
         // 2. Navigation Pill Bar (Replacing JTabbedPane)
-        navBar = new SegmentedNavBar(tabKey -> contentLayout.show(contentPanel, tabKey));
+        navBar = new SegmentedNavBar(tabKey -> {
+            contentLayout.show(contentPanel, tabKey);
+            switch (tabKey) {
+                case "home" -> { if (homePanel != null) homePanel.refresh(); }
+                case "browse" -> { if (browsePanel != null) browsePanel.refresh(); }
+                case "wishlist" -> refreshWishlist();
+                case "my_items" -> refreshMyListings();
+                case "orders" -> refreshOrders();
+                case "profile" -> updateProfile();
+            }
+        });
+        navBar.addTab("home", "Home");
         navBar.addTab("browse", "Browse products");
         navBar.addTab("wishlist", "Wishlist");
         navBar.addTab("my_items", "My items");
@@ -272,7 +274,9 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         page.add(headerContainer, BorderLayout.NORTH);
 
         // 3. Central Content Views
+        homePanel = new HomePanel(service, () -> navBar.selectTab("browse"), () -> productDialog(null));
         browsePanel = new BrowseProductsPanel(service, this, () -> productDialog(null));
+        contentPanel.add(homePanel, "home");
         contentPanel.add(browsePanel, "browse");
         contentPanel.add(buildWishlistView(), "wishlist");
         contentPanel.add(buildMyListingsView(), "my_items");
@@ -345,7 +349,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
         myListingsCountLabel = UITheme.label("", 13f, true, UITheme.PRIMARY);
 
-        UITheme.ModernButton sellBtn = new UITheme.ModernButton("＋  List a new item", UITheme.ButtonStyle.PRIMARY);
+        UITheme.ModernButton sellBtn = new UITheme.ModernButton("+  List a new item", UITheme.ButtonStyle.PRIMARY);
         sellBtn.setPreferredSize(new Dimension(160, 38));
         sellBtn.addActionListener(e -> productDialog(null));
 
@@ -441,6 +445,21 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
         actions.add(completeBtn);
         actions.add(cancelBtn);
+
+        UITheme.ModernButton reviewBtn = new UITheme.ModernButton("Rate Seller", UITheme.ButtonStyle.SECONDARY);
+        reviewBtn.setPreferredSize(new Dimension(160, 38));
+        reviewBtn.setToolTipText("Leave a star rating, tags, and feedback for the seller after completing an order");
+        reviewBtn.addActionListener(e -> withSelectedOrder(o -> {
+            if (!service.canReview(o.getProduct().getId())) {
+                showError(new IllegalStateException(
+                        service.hasReviewed(o.getProduct().getId())
+                                ? "You have already reviewed the seller for this order."
+                                : "You can only rate a seller after your order is completed."));
+                return;
+            }
+            reviewDialog(o.getProduct());
+        }));
+        actions.add(reviewBtn);
         panel.add(actions, BorderLayout.SOUTH);
 
         return panel;
@@ -487,7 +506,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         card.setBorder(new EmptyBorder(34, 36, 34, 36));
 
         // Avatar circle
-        JLabel avatar = new JLabel("●", SwingConstants.CENTER) {
+        JLabel avatar = new JLabel("", SwingConstants.CENTER) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -512,10 +531,12 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         profileName = UITheme.label("", 24f, true, UITheme.TEXT_MAIN);
         profileEmail = UITheme.label("", 14f, false, UITheme.TEXT_MUTED);
         profileStudentDetails = UITheme.label("", 13.5f, false, UITheme.TEXT_MUTED);
+        profileReputation = UITheme.label("", 13.5f, true, new Color(0xD9, 0x77, 0x06));
 
         profileName.setAlignmentX(Component.LEFT_ALIGNMENT);
         profileEmail.setAlignmentX(Component.LEFT_ALIGNMENT);
         profileStudentDetails.setAlignmentX(Component.LEFT_ALIGNMENT);
+        profileReputation.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         card.add(avatar);
         card.add(Box.createVerticalStrut(16));
@@ -524,7 +545,9 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         card.add(profileEmail);
         card.add(Box.createVerticalStrut(6));
         card.add(profileStudentDetails);
-        card.add(Box.createVerticalStrut(24));
+        card.add(Box.createVerticalStrut(8));
+        card.add(profileReputation);
+        card.add(Box.createVerticalStrut(22));
 
         UITheme.CardPanel note = new UITheme.CardPanel(10, new Color(0xF9, 0xFA, 0xFB), UITheme.BORDER);
         note.setLayout(new BoxLayout(note, BoxLayout.Y_AXIS));
@@ -577,7 +600,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
     public void onRemove(Product product) {
         int choice = JOptionPane.showConfirmDialog(
                 this,
-                "Remove “" + product.getName() + "” from your listings?",
+                "Remove \"" + product.getName() + "\" from your listings?",
                 "Remove listing",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE
@@ -601,12 +624,19 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         JTextField email = createModernTextField(22);
         JTextField studentId = createModernTextField(22);
         JTextField department = createModernTextField(22);
+        JTextField phone = createModernTextField(22);
+        phone.setText("+91 ");
         JPasswordField password = createModernPasswordField(22);
         JComboBox<Integer> year = new JComboBox<>(new Integer[]{1, 2, 3, 4, 5, 6});
         year.setPreferredSize(new Dimension(240, 38));
         year.setBackground(UITheme.SURFACE);
 
-        JPanel form = new JPanel(new GridLayout(signup ? 6 : 2, 2, 12, 14));
+        if (!signup) {
+            email.setText("maya@campus.local");
+            password.setText("campus123");
+        }
+
+        JPanel form = new JPanel(new GridLayout(signup ? 7 : 2, 2, 12, 14));
         form.setBorder(new EmptyBorder(16, 12, 12, 12));
 
         if (signup) {
@@ -635,6 +665,10 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
             JLabel lYear = UITheme.label("Year", 13f, true, UITheme.TEXT_MAIN);
             lYear.setLabelFor(year);
             form.add(lYear); form.add(year);
+
+            JLabel lPhone = UITheme.label("Phone Number", 13f, true, UITheme.TEXT_MAIN);
+            lPhone.setLabelFor(phone);
+            form.add(lPhone); form.add(phone);
         }
 
         int result = JOptionPane.showConfirmDialog(
@@ -649,12 +683,12 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         try {
             if (signup) {
                 service.signUp(name.getText(), email.getText(), new String(password.getPassword()),
-                        studentId.getText(), department.getText(), (Integer) year.getSelectedItem());
+                        studentId.getText(), department.getText(), (Integer) year.getSelectedItem(), phone.getText());
             } else {
                 service.logIn(email.getText(), new String(password.getPassword()));
             }
             refreshAll();
-            navBar.selectTab("browse");
+            navBar.selectTab("home");
             rootLayout.show(rootPanel, "market");
         } catch (RuntimeException ex) {
             showError(ex);
@@ -673,7 +707,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         description.setText(editing ? existing.getDescription() : "");
 
         JComboBox<Category> category = new JComboBox<>(service.categories().toArray(Category[]::new));
-        category.setPreferredSize(new Dimension(240, 38));
+        category.setPreferredSize(new Dimension(260, 38));
         category.setBackground(UITheme.SURFACE);
         if (editing) category.setSelectedItem(existing.getCategory());
 
@@ -722,13 +756,28 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         c.fill = GridBagConstraints.HORIZONTAL;
 
         addFormField(form, c, 0, "Product name", name);
-        addFormField(form, c, 1, "Price (₹)", price);
+        addFormField(form, c, 1, "Price (\u20B9)", price);
         addFormField(form, c, 2, "Category", category);
         addFormField(form, c, 3, "Description", description);
 
-        c.gridx = 0; c.gridy = 4; c.gridwidth = 2;
+        JCheckBox exchangeCheck = new JCheckBox("Open to swap / exchange with other student's item");
+        exchangeCheck.setFont(UITheme.medium(12.5f));
+        exchangeCheck.setForeground(UITheme.TEXT_MAIN);
+        exchangeCheck.setOpaque(false);
+        if (editing) exchangeCheck.setSelected(existing.isOpenToExchange());
+
+        JTextField exchangePref = createModernTextField(22);
+        exchangePref.setToolTipText("e.g. Looking for Casio fx-991, 3rd-sem CS books, or headphones");
+        if (editing) exchangePref.setText(existing.getExchangePreference());
+        exchangePref.setEnabled(exchangeCheck.isSelected());
+        exchangeCheck.addActionListener(e -> exchangePref.setEnabled(exchangeCheck.isSelected()));
+
+        addFormField(form, c, 4, "Exchange option", exchangeCheck);
+        addFormField(form, c, 5, "Looking for in swap", exchangePref);
+
+        c.gridx = 0; c.gridy = 6; c.gridwidth = 2;
         form.add(preview, c);
-        c.gridy = 5;
+        c.gridy = 7;
         form.add(photoActions, c);
 
         int result = JOptionPane.showConfirmDialog(
@@ -742,10 +791,12 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
         try {
             double amount = Double.parseDouble(price.getText().trim());
+            boolean openToSwap = exchangeCheck.isSelected();
+            String pref = exchangePref.getText().trim();
             if (editing) {
-                service.editProduct(existing.getId(), name.getText(), amount, description.getText(), (Category) category.getSelectedItem(), image[0]);
+                service.editProduct(existing.getId(), name.getText(), amount, description.getText(), (Category) category.getSelectedItem(), image[0], openToSwap, pref);
             } else {
-                service.addProduct(name.getText(), amount, description.getText(), (Category) category.getSelectedItem(), image[0]);
+                service.addProduct(name.getText(), amount, description.getText(), (Category) category.getSelectedItem(), image[0], openToSwap, pref);
             }
             refreshAll();
         } catch (RuntimeException ex) {
@@ -782,7 +833,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
         UITheme.BadgeLabel tag = new UITheme.BadgeLabel(p.getCategory().name().toUpperCase(), UITheme.TAG_BG, UITheme.TAG_TEXT);
         JLabel title = UITheme.label(p.getName(), 24f, true, UITheme.TEXT_MAIN);
-        JLabel price = UITheme.label("₹" + String.format("%.0f", p.getPrice()), 22f, true, UITheme.PRICE_COLOR);
+        JLabel price = UITheme.label("\u20B9" + String.format("%.0f", p.getPrice()), 22f, true, UITheme.PRICE_COLOR);
         JLabel seller = UITheme.label("Listed by " + p.getSeller().getName() + " (" + p.getSeller().getDepartment() + ")", 13f, false, UITheme.TEXT_MUTED);
 
         JTextArea description = new JTextArea(p.getDescription().isBlank() ? "No description provided." : p.getDescription());
@@ -803,6 +854,24 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         details.add(seller);
         details.add(Box.createVerticalStrut(14));
         details.add(description);
+
+        if (p.isOpenToExchange()) {
+            details.add(Box.createVerticalStrut(10));
+            UITheme.CardPanel swapCard = new UITheme.CardPanel(8, new Color(0xF0, 0xFD, 0xFA), new Color(0x99, 0xF6, 0xE4));
+            swapCard.setLayout(new BoxLayout(swapCard, BoxLayout.Y_AXIS));
+            swapCard.setBorder(new EmptyBorder(8, 12, 8, 12));
+            swapCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+            swapCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 65));
+
+            JLabel swapTitle = UITheme.label("SWAP / EXCHANGE ACCEPTED", 11.5f, true, new Color(0x0F, 0x76, 0x6E));
+            String prefText = p.getExchangePreference().isBlank() ? "Seller is open to trade for study supplies or books." : p.getExchangePreference();
+            JLabel swapDesc = UITheme.label("Looking for: " + prefText, 12f, false, UITheme.TEXT_MAIN);
+            swapCard.add(swapTitle);
+            swapCard.add(Box.createVerticalStrut(2));
+            swapCard.add(swapDesc);
+            details.add(swapCard);
+        }
+
         details.add(Box.createVerticalGlue());
 
         // Actions
@@ -816,8 +885,8 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         if (!p.getSeller().equals(service.currentUser()) && "AVAILABLE".equals(p.getStatus().name())) {
             boolean isSaved = service.isWishlisted(p.getId());
             UITheme.ModernButton saveBtn = new UITheme.ModernButton(
-                    isSaved ? "♥ Saved" : "♡ Save",
-                    isSaved ? UITheme.ButtonStyle.OUTLINE : UITheme.ButtonStyle.SECONDARY
+                    isSaved ? "Saved" : "Save",
+                    isSaved ? UITheme.ButtonStyle.PRIMARY : UITheme.ButtonStyle.SECONDARY
             );
             saveBtn.setPreferredSize(new Dimension(100, 38));
             saveBtn.setToolTipText(isSaved ? "Remove from your wishlist" : "Add to your wishlist");
@@ -836,15 +905,323 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
             actions.add(saveBtn);
             actions.add(buyBtn);
+
+            if (p.isOpenToExchange()) {
+                UITheme.ModernButton swapBtn = new UITheme.ModernButton("Propose Exchange", UITheme.ButtonStyle.SECONDARY);
+                swapBtn.setPreferredSize(new Dimension(150, 38));
+                swapBtn.setToolTipText("Trade one of your items for this listing");
+                swapBtn.addActionListener(e -> {
+                    dialog.dispose();
+                    proposeExchangeDialog(p);
+                });
+                actions.add(swapBtn);
+            }
+
+            UITheme.ModernButton chatBtn = new UITheme.ModernButton("Chat with Seller", UITheme.ButtonStyle.SECONDARY);
+            chatBtn.setPreferredSize(new Dimension(150, 38));
+            chatBtn.setToolTipText("Contact " + p.getSeller().getName() + " with your phone number and meetup chat message");
+            chatBtn.addActionListener(e -> chatWithSellerDialog(p));
+            actions.add(chatBtn);
         }
 
         actions.add(closeBtn);
         details.add(actions);
 
+        // --- Reviews Section ---
+        details.add(Box.createVerticalStrut(14));
+        JSeparator sep = new JSeparator();
+        sep.setForeground(UITheme.BORDER);
+        sep.setAlignmentX(Component.LEFT_ALIGNMENT);
+        details.add(sep);
+        details.add(Box.createVerticalStrut(10));
+
+        JLabel reviewsHeading = UITheme.label("Seller Reputation (" + p.getSeller().getName() + ")", 15f, true, UITheme.TEXT_MAIN);
+        reviewsHeading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        details.add(reviewsHeading);
+        details.add(Box.createVerticalStrut(8));
+
+        List<Review> reviews = service.reviewsForSeller(p.getSeller().getId());
+        if (reviews.isEmpty()) {
+            JLabel noReviews = UITheme.label("New seller \u00B7 No campus reviews yet.", 12.5f, false, UITheme.TEXT_MUTED);
+            noReviews.setAlignmentX(Component.LEFT_ALIGNMENT);
+            details.add(noReviews);
+        } else {
+            double avg = service.averageSellerRating(p.getSeller().getId());
+            int rounded = (int) Math.round(avg);
+            StringBuilder avgStars = new StringBuilder();
+            for (int i = 1; i <= 5; i++) avgStars.append(i <= rounded ? "\u2605" : "\u2606");
+            JLabel avgLabel = UITheme.symbolLabel(
+                    avgStars + "  " + String.format("%.1f", avg) + " / 5  ("
+                            + reviews.size() + (reviews.size() == 1 ? " review)" : " reviews)"),
+                    13.5f, true, new Color(0xF5, 0x9E, 0x0B));
+            avgLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            details.add(avgLabel);
+            details.add(Box.createVerticalStrut(10));
+
+            JPanel reviewList = new JPanel();
+            reviewList.setOpaque(false);
+            reviewList.setLayout(new BoxLayout(reviewList, BoxLayout.Y_AXIS));
+
+            for (Review rv : reviews) {
+                UITheme.CardPanel reviewCard = new UITheme.CardPanel(8, new Color(0xF9, 0xFA, 0xFB), UITheme.BORDER);
+                reviewCard.setLayout(new BoxLayout(reviewCard, BoxLayout.Y_AXIS));
+                reviewCard.setBorder(new EmptyBorder(8, 12, 8, 12));
+                reviewCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+                reviewCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 105));
+
+                StringBuilder stars = new StringBuilder();
+                for (int i = 1; i <= 5; i++) stars.append(i <= rv.getRating() ? "\u2605" : "\u2606");
+                JLabel rvStars = UITheme.symbolLabel(stars.toString(), 13f, true, new Color(0xF5, 0x9E, 0x0B));
+                JLabel rvName  = UITheme.label("  by " + rv.getReviewer().getName(), 12f, false, UITheme.TEXT_MUTED);
+                JPanel rvHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+                rvHeader.setOpaque(false);
+                rvHeader.add(rvStars);
+                rvHeader.add(rvName);
+                rvHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
+                reviewCard.add(rvHeader);
+
+                if (!rv.getComment().isBlank()) {
+                    reviewCard.add(Box.createVerticalStrut(4));
+                    JLabel rvComment = UITheme.label("\"" + rv.getComment() + "\"", 12.5f, false, UITheme.TEXT_MAIN);
+                    rvComment.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    reviewCard.add(rvComment);
+                }
+
+                if (!rv.getTags().isEmpty()) {
+                    reviewCard.add(Box.createVerticalStrut(4));
+                    JPanel tagFlow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+                    tagFlow.setOpaque(false);
+                    tagFlow.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    for (String t : rv.getTags()) {
+                        tagFlow.add(new UITheme.BadgeLabel(t, UITheme.TAG_TEXT, UITheme.TAG_BG));
+                    }
+                    reviewCard.add(tagFlow);
+                }
+
+                reviewList.add(reviewCard);
+                reviewList.add(Box.createVerticalStrut(6));
+            }
+
+            JScrollPane rvScroll = new JScrollPane(reviewList);
+            rvScroll.setPreferredSize(new Dimension(0, 160));
+            rvScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+            rvScroll.setBorder(BorderFactory.createEmptyBorder());
+            rvScroll.getViewport().setBackground(UITheme.SURFACE);
+            rvScroll.getVerticalScrollBar().setUnitIncrement(8);
+            rvScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+            details.add(rvScroll);
+        }
+
+        // "Rate Seller" button - only for eligible buyers
+        if (service.canReview(p.getId())) {
+            details.add(Box.createVerticalStrut(10));
+            UITheme.ModernButton writeReview = new UITheme.ModernButton("Rate Seller", UITheme.ButtonStyle.SECONDARY);
+            writeReview.setAlignmentX(Component.LEFT_ALIGNMENT);
+            writeReview.setPreferredSize(new Dimension(160, 36));
+            writeReview.setToolTipText("You have completed an order with this seller - leave your feedback");
+            writeReview.addActionListener(e -> {
+                dialog.dispose();
+                reviewDialog(p);
+            });
+            details.add(writeReview);
+        }
+
+        // More items from this seller
+        List<Product> moreFromSeller = service.products().stream()
+                .filter(other -> other.getSeller().equals(p.getSeller()) && !other.getId().equals(p.getId()))
+                .toList();
+
+        if (!moreFromSeller.isEmpty()) {
+            details.add(Box.createVerticalStrut(10));
+            JPanel moreBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+            moreBox.setOpaque(false);
+            moreBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            JLabel moreLabel = UITheme.label("More from " + p.getSeller().getName() + ":", 12f, true, UITheme.TEXT_MUTED);
+            moreBox.add(moreLabel);
+
+            for (Product other : moreFromSeller) {
+                UITheme.ModernButton itemBtn = new UITheme.ModernButton(
+                        other.getName() + " (\u20B9" + String.format("%.0f", other.getPrice()) + ")",
+                        UITheme.ButtonStyle.OUTLINE
+                );
+                itemBtn.setFont(UITheme.medium(11f));
+                itemBtn.setToolTipText("View " + other.getName());
+                itemBtn.addActionListener(e -> {
+                    dialog.dispose();
+                    showProductDialog(other);
+                });
+                moreBox.add(itemBtn);
+            }
+            details.add(moreBox);
+        }
+
         content.add(details);
         dialog.setContentPane(content);
         dialog.pack();
-        dialog.setSize(860, 480);
+        dialog.setSize(920, 600);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private void reviewDialog(Product p) {
+        JDialog dialog = new JDialog(this, "Rate Seller: " + p.getSeller().getName(), true);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(UITheme.SURFACE);
+        content.setBorder(new EmptyBorder(22, 26, 22, 26));
+
+        // Header
+        JLabel heading = UITheme.label("Rate your experience with " + p.getSeller().getName(), 18f, true, UITheme.TEXT_MAIN);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel sub = UITheme.label("Deal item: " + p.getName() + "  \u00B7  Seller: " + p.getSeller().getDepartment() + ", Year " + p.getSeller().getYear(), 12.5f, false, UITheme.TEXT_MUTED);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        content.add(heading);
+        content.add(Box.createVerticalStrut(4));
+        content.add(sub);
+        content.add(Box.createVerticalStrut(16));
+
+        // Star Rating selector
+        JLabel starTitle = UITheme.label("Overall Seller Rating", 13.5f, true, UITheme.TEXT_MAIN);
+        starTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(starTitle);
+        content.add(Box.createVerticalStrut(4));
+
+        final int[] selectedRating = {5};
+        JPanel starPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        starPanel.setOpaque(false);
+        starPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton[] starBtns = new JButton[5];
+        JLabel ratingText = UITheme.label("  5.0 / 5.0 (Excellent)", 13f, true, new Color(0xF5, 0x9E, 0x0B));
+
+        Runnable updateStarDisplay = () -> {
+            for (int i = 0; i < 5; i++) {
+                starBtns[i].setText(i < selectedRating[0] ? "\u2605" : "\u2606");
+            }
+            String desc = switch (selectedRating[0]) {
+                case 5 -> "  5.0 / 5.0 (Excellent)";
+                case 4 -> "  4.0 / 5.0 (Very Good)";
+                case 3 -> "  3.0 / 5.0 (Average)";
+                case 2 -> "  2.0 / 5.0 (Poor)";
+                default -> "  1.0 / 5.0 (Terrible)";
+            };
+            ratingText.setText(desc);
+        };
+
+        for (int i = 0; i < 5; i++) {
+            final int starVal = i + 1;
+            JButton btn = new JButton("\u2605");
+            btn.setFont(UITheme.symbolFont(26f, Font.BOLD));
+            btn.setForeground(new Color(0xF5, 0x9E, 0x0B));
+            btn.setContentAreaFilled(false);
+            btn.setBorderPainted(false);
+            btn.setFocusPainted(false);
+            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            btn.setMargin(new Insets(0, 2, 0, 2));
+            btn.addActionListener(e -> {
+                selectedRating[0] = starVal;
+                updateStarDisplay.run();
+            });
+            starBtns[i] = btn;
+            starPanel.add(btn);
+        }
+        starPanel.add(ratingText);
+        content.add(starPanel);
+        content.add(Box.createVerticalStrut(14));
+
+        // Quick Tags Checkboxes
+        JLabel tagsTitle = UITheme.label("Select Experience Badges", 13.5f, true, UITheme.TEXT_MAIN);
+        tagsTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(tagsTitle);
+        content.add(Box.createVerticalStrut(6));
+
+        JPanel tagsPanel = new JPanel(new GridLayout(2, 3, 10, 8));
+        tagsPanel.setOpaque(false);
+        tagsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        tagsPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 64));
+        tagsPanel.setPreferredSize(new Dimension(500, 64));
+
+        String[] badgeOptions = new String[]{
+                "Item as described",
+                "On-time meetup",
+                "Tested in person",
+                "Quick response",
+                "Friendly senior",
+                "Fair price"
+        };
+        List<JCheckBox> checkBoxes = new ArrayList<>();
+        for (String tagText : badgeOptions) {
+            JCheckBox cb = new JCheckBox(tagText);
+            cb.setFont(UITheme.medium(12.5f));
+            cb.setForeground(UITheme.TEXT_MAIN);
+            cb.setOpaque(false);
+            cb.setFocusPainted(false);
+            if (tagText.equals("Item as described") || tagText.equals("On-time meetup")) {
+                cb.setSelected(true);
+            }
+            checkBoxes.add(cb);
+            tagsPanel.add(cb);
+        }
+        content.add(tagsPanel);
+        content.add(Box.createVerticalStrut(14));
+
+        // Comment area
+        JLabel commentTitle = UITheme.label("Student Experience Feedback (Optional)", 13.5f, true, UITheme.TEXT_MAIN);
+        commentTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(commentTitle);
+        content.add(Box.createVerticalStrut(4));
+
+        JTextArea commentArea = new JTextArea(4, 30);
+        commentArea.setFont(UITheme.regular(13f));
+        commentArea.setLineWrap(true);
+        commentArea.setWrapStyleWord(true);
+        commentArea.setBorder(new EmptyBorder(8, 10, 8, 10));
+
+        JScrollPane commentScroll = new JScrollPane(commentArea);
+        commentScroll.setBorder(UITheme.roundedBorder(8, UITheme.BORDER, 1));
+        commentScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(commentScroll);
+        content.add(Box.createVerticalStrut(18));
+
+        // Buttons
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        buttonRow.setOpaque(false);
+        buttonRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        UITheme.ModernButton cancel = new UITheme.ModernButton("Cancel", UITheme.ButtonStyle.SECONDARY);
+        cancel.setPreferredSize(new Dimension(90, 38));
+        cancel.addActionListener(e -> dialog.dispose());
+
+        UITheme.ModernButton submit = new UITheme.ModernButton("Submit Review", UITheme.ButtonStyle.PRIMARY);
+        submit.setPreferredSize(new Dimension(140, 38));
+        submit.addActionListener(e -> {
+            try {
+                List<String> chosenTags = new ArrayList<>();
+                for (JCheckBox cb : checkBoxes) {
+                    if (cb.isSelected()) chosenTags.add(cb.getText());
+                }
+                service.addReview(p.getId(), selectedRating[0], commentArea.getText(), chosenTags);
+                dialog.dispose();
+                refreshAll();
+                JOptionPane.showMessageDialog(this,
+                        "Thank you! Your review for " + p.getSeller().getName() + " has been posted.",
+                        "Review Submitted", JOptionPane.INFORMATION_MESSAGE);
+            } catch (RuntimeException ex) {
+                showError(ex);
+            }
+        });
+
+        buttonRow.add(cancel);
+        buttonRow.add(submit);
+        content.add(buttonRow);
+
+        dialog.setContentPane(content);
+        dialog.pack();
+        dialog.setSize(580, 560);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
@@ -877,9 +1254,9 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         copy.setLayout(new BoxLayout(copy, BoxLayout.Y_AXIS));
         copy.add(UITheme.label(p.getName(), 18f, true, UITheme.TEXT_MAIN));
         copy.add(Box.createVerticalStrut(6));
-        copy.add(UITheme.label(p.getCategory().name() + "  ·  Seller: " + p.getSeller().getName(), 12.5f, false, UITheme.TEXT_MUTED));
+        copy.add(UITheme.label(p.getCategory().name() + "  \u00B7  Seller: " + p.getSeller().getName(), 12.5f, false, UITheme.TEXT_MUTED));
         copy.add(Box.createVerticalStrut(12));
-        copy.add(UITheme.label("₹" + String.format("%.0f", p.getPrice()), 20f, true, UITheme.PRICE_COLOR));
+        copy.add(UITheme.label("\u20B9" + String.format("%.0f", p.getPrice()), 20f, true, UITheme.PRICE_COLOR));
         copy.add(Box.createVerticalStrut(6));
         copy.add(new UITheme.BadgeLabel("PAYMENT: CASH ON DELIVERY", UITheme.TAG_BG, UITheme.TAG_TEXT));
 
@@ -924,6 +1301,317 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         dialog.setVisible(true);
     }
 
+    private void chatWithSellerDialog(Product p) {
+        Student seller = p.getSeller();
+        Student me = service.currentUser();
+
+        JDialog dialog = new JDialog(this, "Chat with Seller: " + seller.getName(), true);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(UITheme.SURFACE);
+        content.setBorder(new EmptyBorder(22, 26, 22, 26));
+
+        // 1. Header & Seller Info Card
+        JLabel heading = UITheme.label("Chat & Contact Seller", 18f, true, UITheme.TEXT_MAIN);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(heading);
+        content.add(Box.createVerticalStrut(4));
+
+        JLabel sub = UITheme.label("Send your contact phone number and message to coordinate a campus meetup.", 12.5f, false, UITheme.TEXT_MUTED);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(sub);
+        content.add(Box.createVerticalStrut(14));
+
+        UITheme.CardPanel sellerCard = new UITheme.CardPanel(10, new Color(0xF9, 0xFA, 0xFB), UITheme.BORDER);
+        sellerCard.setLayout(new BoxLayout(sellerCard, BoxLayout.Y_AXIS));
+        sellerCard.setBorder(new EmptyBorder(12, 14, 12, 14));
+        sellerCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sellerCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
+
+        JPanel sNameRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        sNameRow.setOpaque(false);
+        sNameRow.add(UITheme.label("Seller: " + seller.getName(), 14f, true, UITheme.TEXT_MAIN));
+        sNameRow.add(new UITheme.BadgeLabel(seller.getDepartment() + " \u00B7 Year " + seller.getYear(), UITheme.TAG_TEXT, UITheme.TAG_BG));
+        sellerCard.add(sNameRow);
+        sellerCard.add(Box.createVerticalStrut(4));
+
+        JLabel sPhoneLabel = UITheme.label("Seller Phone / WhatsApp: " + seller.getPhoneNumber(), 12.5f, true, UITheme.PRIMARY);
+        sellerCard.add(sPhoneLabel);
+        sellerCard.add(Box.createVerticalStrut(2));
+
+        JLabel sItemLabel = UITheme.label("Listing: " + p.getName() + " (\u20B9" + String.format("%.0f", p.getPrice()) + ")", 12f, false, UITheme.TEXT_MUTED);
+        sellerCard.add(sItemLabel);
+
+        content.add(sellerCard);
+        content.add(Box.createVerticalStrut(16));
+
+        // 2. Buyer's Phone Number Input
+        JLabel phoneTitle = UITheme.label("Your Phone Number (WhatsApp / Calling)", 13.5f, true, UITheme.TEXT_MAIN);
+        phoneTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(phoneTitle);
+        content.add(Box.createVerticalStrut(4));
+
+        JTextField phoneInput = createModernTextField(26);
+        phoneInput.setText(me.getPhoneNumber());
+        phoneInput.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(phoneInput);
+        content.add(Box.createVerticalStrut(4));
+
+        JLabel phoneHelp = UITheme.label("The seller will use this number to message or call you back.", 11.5f, false, UITheme.TEXT_MUTED);
+        phoneHelp.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(phoneHelp);
+        content.add(Box.createVerticalStrut(14));
+
+        // 3. Quick Message Options for Chat
+        JLabel optionsTitle = UITheme.label("Quick Chat Options (Click to select)", 13f, true, UITheme.TEXT_MAIN);
+        optionsTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(optionsTitle);
+        content.add(Box.createVerticalStrut(6));
+
+        JPanel optionsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        optionsRow.setOpaque(false);
+        optionsRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        String[] quickOptions = new String[]{
+                "Hi, is this still available?",
+                "Can we meet near the library?",
+                "What time works best for you?",
+                "Is the price negotiable?"
+        };
+
+        JTextArea messageInput = new JTextArea(4, 28);
+        messageInput.setFont(UITheme.regular(13f));
+        messageInput.setLineWrap(true);
+        messageInput.setWrapStyleWord(true);
+        messageInput.setText("Hi " + seller.getName() + ", I am interested in buying your " + p.getName() + ". Can we meet on campus?");
+        messageInput.setBorder(new EmptyBorder(8, 10, 8, 10));
+
+        for (String opt : quickOptions) {
+            JButton chip = new JButton(opt);
+            chip.setFont(UITheme.regular(11.5f));
+            chip.setForeground(UITheme.PRIMARY);
+            chip.setBackground(new Color(0xEC, 0xFD, 0xF5));
+            chip.setBorder(UITheme.roundedBorder(6, new Color(0xA7, 0xF3, 0xD0), 1));
+            chip.setFocusPainted(false);
+            chip.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            chip.setMargin(new Insets(3, 8, 3, 8));
+            chip.addActionListener(e -> {
+                messageInput.setText(opt);
+                messageInput.requestFocusInWindow();
+            });
+            optionsRow.add(chip);
+        }
+        content.add(optionsRow);
+        content.add(Box.createVerticalStrut(10));
+
+        // 4. Message Input Area
+        JLabel msgTitle = UITheme.label("Chat Message", 13.5f, true, UITheme.TEXT_MAIN);
+        msgTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(msgTitle);
+        content.add(Box.createVerticalStrut(4));
+
+        JScrollPane msgScroll = new JScrollPane(messageInput);
+        msgScroll.setBorder(UITheme.roundedBorder(8, UITheme.BORDER, 1));
+        msgScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(msgScroll);
+        content.add(Box.createVerticalStrut(18));
+
+        // 5. Actions Row
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        actions.setOpaque(false);
+        actions.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        UITheme.ModernButton cancelBtn = new UITheme.ModernButton("Cancel", UITheme.ButtonStyle.SECONDARY);
+        cancelBtn.setPreferredSize(new Dimension(90, 38));
+        cancelBtn.addActionListener(e -> dialog.dispose());
+
+        UITheme.ModernButton sendBtn = new UITheme.ModernButton("Send Message", UITheme.ButtonStyle.PRIMARY);
+        sendBtn.setPreferredSize(new Dimension(140, 38));
+        sendBtn.addActionListener(e -> {
+            String enteredPhone = phoneInput.getText().trim();
+            String enteredMsg = messageInput.getText().trim();
+
+            if (enteredPhone.isBlank()) {
+                showError(new IllegalArgumentException("Please enter your phone number so the seller can contact you."));
+                return;
+            }
+            if (enteredMsg.isBlank()) {
+                showError(new IllegalArgumentException("Please type a message for the chat."));
+                return;
+            }
+
+            dialog.dispose();
+            JOptionPane.showMessageDialog(
+                    this,
+                    "<html><b>Chat message sent to " + seller.getName() + "!</b><br><br>" +
+                            "<b>Listing:</b> " + p.getName() + "<br>" +
+                            "<b>Seller Contact:</b> " + seller.getPhoneNumber() + "<br>" +
+                            "<b>Your Phone:</b> " + enteredPhone + "<br>" +
+                            "<b>Message:</b> \"" + enteredMsg + "\"<br><br>" +
+                            seller.getName() + " will call or message you on WhatsApp to coordinate the meetup on campus.</html>",
+                    "Message Sent to Seller",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        });
+
+        actions.add(cancelBtn);
+        actions.add(sendBtn);
+        content.add(actions);
+
+        dialog.setContentPane(content);
+        dialog.pack();
+        dialog.setSize(560, 560);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private void proposeExchangeDialog(Product target) {
+        Student me = service.currentUser();
+        List<Product> myItems = service.myListings().stream()
+                .filter(p -> "AVAILABLE".equals(p.getStatus().name()))
+                .toList();
+
+        if (myItems.isEmpty()) {
+            int ans = JOptionPane.showConfirmDialog(
+                    this,
+                    "<html><b>You don't have any active listings to offer in exchange!</b><br><br>" +
+                    "To swap items on campus, you must list an item of your own first.<br>" +
+                    "Would you like to list a new item now?</html>",
+                    "No Items Available to Swap",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+            if (ans == JOptionPane.YES_OPTION) {
+                productDialog(null);
+            }
+            return;
+        }
+
+        JDialog dialog = new JDialog(this, "Propose Exchange: " + target.getName(), true);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(UITheme.SURFACE);
+        content.setBorder(new EmptyBorder(22, 26, 22, 26));
+
+        // Header
+        JLabel heading = UITheme.label("Propose Campus Item Swap", 18f, true, UITheme.TEXT_MAIN);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(heading);
+        content.add(Box.createVerticalStrut(4));
+
+        JLabel sub = UITheme.label("Trade one of your items for " + target.getSeller().getName() + "’s listing.", 12.5f, false, UITheme.TEXT_MUTED);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(sub);
+        content.add(Box.createVerticalStrut(14));
+
+        // Target Summary Card
+        UITheme.CardPanel targetCard = new UITheme.CardPanel(10, new Color(0xF0, 0xFD, 0xFA), new Color(0x99, 0xF6, 0xE4));
+        targetCard.setLayout(new BoxLayout(targetCard, BoxLayout.Y_AXIS));
+        targetCard.setBorder(new EmptyBorder(10, 14, 10, 14));
+        targetCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        targetCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 85));
+
+        JLabel targetTitle = UITheme.label("Item you want: " + target.getName() + " (\u20B9" + String.format("%.0f", target.getPrice()) + ")", 13.5f, true, UITheme.TEXT_MAIN);
+        JLabel targetSeller = UITheme.label("Seller: " + target.getSeller().getName() + "  \u00B7  " + target.getSeller().getDepartment(), 12f, false, UITheme.TEXT_MUTED);
+        String prefText = target.getExchangePreference().isBlank() ? "Open to general trades" : target.getExchangePreference();
+        JLabel targetPref = UITheme.label("Seller looking for: " + prefText, 12f, true, new Color(0x0F, 0x76, 0x6E));
+
+        targetCard.add(targetTitle);
+        targetCard.add(Box.createVerticalStrut(2));
+        targetCard.add(targetSeller);
+        targetCard.add(Box.createVerticalStrut(2));
+        targetCard.add(targetPref);
+        content.add(targetCard);
+        content.add(Box.createVerticalStrut(16));
+
+        // Select offered item
+        JLabel offerLabel = UITheme.label("Choose your item to offer in trade:", 13.5f, true, UITheme.TEXT_MAIN);
+        offerLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(offerLabel);
+        content.add(Box.createVerticalStrut(4));
+
+        JComboBox<Product> itemCombo = new JComboBox<>(myItems.toArray(new Product[0]));
+        itemCombo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Product p) {
+                    setText(p.getName() + " (" + p.getCategory().name() + " \u00B7 \u20B9" + String.format("%.0f", p.getPrice()) + ")");
+                }
+                return this;
+            }
+        });
+        itemCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        itemCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(itemCombo);
+        content.add(Box.createVerticalStrut(14));
+
+        // Meetup Location / Notes
+        JLabel meetupLabel = UITheme.label("Proposed Meetup Location & Time", 13.5f, true, UITheme.TEXT_MAIN);
+        meetupLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(meetupLabel);
+        content.add(Box.createVerticalStrut(4));
+
+        JTextField meetupInput = createModernTextField(26);
+        meetupInput.setText("Central Library foyer, 4:30 PM");
+        meetupInput.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(meetupInput);
+        content.add(Box.createVerticalStrut(18));
+
+        // Actions Row
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        actions.setOpaque(false);
+        actions.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        UITheme.ModernButton cancelBtn = new UITheme.ModernButton("Cancel", UITheme.ButtonStyle.SECONDARY);
+        cancelBtn.setPreferredSize(new Dimension(90, 38));
+        cancelBtn.addActionListener(e -> dialog.dispose());
+
+        UITheme.ModernButton confirmBtn = new UITheme.ModernButton("Confirm Exchange Deal", UITheme.ButtonStyle.PRIMARY);
+        confirmBtn.setPreferredSize(new Dimension(190, 38));
+        confirmBtn.addActionListener(e -> {
+            Product offered = (Product) itemCombo.getSelectedItem();
+            if (offered == null) return;
+            String notes = meetupInput.getText().trim();
+            if (notes.isBlank()) notes = "Campus meetup";
+
+            try {
+                Order exchangeOrder = service.proposeExchange(target.getId(), offered.getId(), notes);
+                dialog.dispose();
+                refreshAll();
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "<html><h3 style='color:#059669;'>Campus Exchange Confirmed!</h3><br>" +
+                        "<b>Item you receive:</b> " + target.getName() + " (from " + target.getSeller().getName() + ")<br>" +
+                        "<b>Item you give:</b> " + offered.getName() + "<br>" +
+                        "<b>Seller Phone:</b> " + target.getSeller().getPhoneNumber() + "<br>" +
+                        "<b>Meetup Spot:</b> " + notes + "<br><br>" +
+                        "Both items are now marked as <b>Exchanged</b> on the campus marketplace.<br>" +
+                        "You can review this deal anytime in <b>My orders</b>!</html>",
+                        "Campus Exchange Pass",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+            } catch (RuntimeException ex) {
+                showError(ex);
+            }
+        });
+
+        actions.add(cancelBtn);
+        actions.add(confirmBtn);
+        content.add(actions);
+
+        dialog.setContentPane(content);
+        dialog.pack();
+        dialog.setSize(540, 500);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
     // =========================================================================
     // 5. Data Refresh & Synchronization
     // =========================================================================
@@ -932,6 +1620,7 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         Student current = service.currentUser();
         userPillLabel.setText("Hi, " + current.getName());
 
+        if (homePanel != null) homePanel.refresh();
         updateProfile();
         browsePanel.refresh();
         refreshWishlist();
@@ -947,13 +1636,18 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         Student current = service.currentUser();
 
         for (Product product : products) {
-            wishlistGrid.add(new ProductCardPanel(product, current, true, this));
+            wishlistGrid.add(new ProductCardPanel(product, current, true, this, service.reviewsForSeller(product.getSeller().getId())));
         }
 
-        wishlistCountLabel.setText(products.size() + (products.size() == 1 ? " saved item" : " saved items"));
+        int count = products.size();
+        wishlistCountLabel.setText(count + (count == 1 ? " saved item" : " saved items"));
 
         if (products.isEmpty()) {
             wishlistGrid.add(createEmptySection("Your wishlist is empty", "Save items from Browse products to keep track of them."));
+        }
+
+        if (navBar != null) {
+            navBar.updateTabTitle("wishlist", count > 0 ? "Wishlist (" + count + ")" : "Wishlist");
         }
 
         wishlistGrid.revalidate();
@@ -969,13 +1663,13 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
 
         for (Product product : products) {
             boolean isSaved = service.isWishlisted(product.getId());
-            myListingsGrid.add(new ProductCardPanel(product, current, isSaved, this));
+            myListingsGrid.add(new ProductCardPanel(product, current, isSaved, this, service.reviewsForSeller(product.getSeller().getId())));
         }
 
         myListingsCountLabel.setText(products.size() + (products.size() == 1 ? " listed item" : " listed items"));
 
         if (products.isEmpty()) {
-            myListingsGrid.add(createEmptySection("No listings yet", "Click “List a new item” to sell textbooks, electronics, or supplies!"));
+            myListingsGrid.add(createEmptySection("No listings yet", "Click \"List a new item\" to sell textbooks, electronics, or supplies!"));
         }
 
         myListingsGrid.revalidate();
@@ -986,7 +1680,17 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         Student s = service.currentUser();
         profileName.setText(s.getName());
         profileEmail.setText(s.getEmail());
-        profileStudentDetails.setText("Student ID: " + s.getStudentId() + "  ·  " + s.getDepartment() + "  ·  Year " + s.getYear());
+        profileStudentDetails.setText("Student ID: " + s.getStudentId() + "  \u00B7  " + s.getDepartment() + "  \u00B7  Year " + s.getYear() + "  \u00B7  Phone: " + s.getPhoneNumber());
+
+        double avg = service.averageSellerRating(s.getId());
+        int count = service.sellerReviewCount(s.getId());
+        if (count == 0) {
+            profileReputation.setText("Seller Reputation: New seller (no reviews yet)");
+            profileReputation.setForeground(UITheme.TEXT_MUTED);
+        } else {
+            profileReputation.setText(String.format("Seller Reputation: %.1f / 5.0 (%d campus review%s)", avg, count, count == 1 ? "" : "s"));
+            profileReputation.setForeground(new Color(0xD9, 0x77, 0x06));
+        }
     }
 
     private void refreshOrders() {
@@ -996,11 +1700,15 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
         for (Order order : service.myOrders()) {
             boolean buyer = order.getBuyer().equals(service.currentUser());
             Student other = buyer ? order.getSeller() : order.getBuyer();
+            String titleText = order.getProduct().getName() + (order.isExchange() ? " [Swap]" : "");
+            String roleText = order.isExchange() ? (buyer ? "Buyer (Swap)" : "Seller (Swap)") : (buyer ? "Buyer" : "Seller");
+            String totalText = order.isExchange() ? "Item Swap" : ("\u20B9" + String.format("%.0f", order.getTotal()));
+
             ordersModel.addRow(new Object[]{
-                    order.getProduct().getName(),
+                    titleText,
                     other.getName(),
-                    buyer ? "Buyer" : "Seller",
-                    String.format("%.2f", order.getTotal()),
+                    roleText,
+                    totalText,
                     order.getStatus(),
                     order.getId()
             });
@@ -1023,8 +1731,17 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
             Product product = order.getProduct();
             setPhotoThumbnail(selectedOrderImage, product.getImageBytes(), 278, 160, "No product photo");
             selectedOrderTitle.setText(product.getName());
-            selectedOrderMeta.setText("₹" + String.format("%.0f", order.getTotal()) + "  ·  Status: " + order.getStatus());
-            selectedOrderDescription.setText(product.getDescription().isBlank() ? "No description provided." : product.getDescription());
+            if (order.isExchange()) {
+                selectedOrderMeta.setText("Campus Swap Deal  \u00B7  Status: " + order.getStatus());
+                String detailsText = "Exchange Meetup: " + order.getMeetupNotes() +
+                        "\n\nListing Item: " + product.getName() + " (" + product.getCategory().name() + ")" +
+                        "\nOffered in Trade: " + (order.getOfferedProduct() != null ? order.getOfferedProduct().getName() : "Listed item") +
+                        "\n\nBoth students meet on campus to inspect and swap items.";
+                selectedOrderDescription.setText(detailsText);
+            } else {
+                selectedOrderMeta.setText("\u20B9" + String.format("%.0f", order.getTotal()) + "  \u00B7  Status: " + order.getStatus());
+                selectedOrderDescription.setText(product.getDescription().isBlank() ? "No description provided." : product.getDescription());
+            }
         } catch (RuntimeException ignored) {
             clearOrderPreview();
         }
@@ -1181,6 +1898,17 @@ public final class MarketplaceFrame extends JFrame implements ProductCardListene
             for (PillTab tab : tabs) {
                 if (tab.key.equals(key)) {
                     selectTab(tab);
+                    return;
+                }
+            }
+        }
+
+        public void updateTabTitle(String key, String title) {
+            for (PillTab tab : tabs) {
+                if (tab.key.equals(key)) {
+                    tab.setText(title);
+                    revalidate();
+                    repaint();
                     return;
                 }
             }

@@ -1,89 +1,123 @@
 # Campus Marketplace
 
-A Java Swing, single-process marketplace simulation for campus students. Every account can buy and sell. Data lives only in memory and resets when the app closes. Each laptop runs an independent copy; there is no shared server or cross-laptop data.
+A production-grade Java Swing desktop marketplace simulation designed specifically for university campus communities. Students can buy, sell, barter/swap items, coordinate campus meetups, and build peer seller reputation.
 
-## Requirements and launch
+Data lives in memory during the application session and resets on restart. Each laptop runs an independent instance without requiring any external servers, database setup, or third-party dependencies.
 
-- JDK 17 or newer.
-- No third-party libraries or database.
-- From this project directory, compile and launch with:
+---
 
-```powershell
-$sources = Get-ChildItem src/main/java -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-javac -d out $sources
-Copy-Item -Recurse .\src\main\resources\* .\out
-java -cp out edu.campusmarketplace.Main
-```
+## Quick Launch (Powershell)
 
-## Scope and rules
-
-- Starter accounts and sample listings are loaded at startup. Students can also sign up and log in during the current run using name, email, password, student ID, department, and year. Duplicate emails and student IDs are rejected.
-- Listings are owned by their seller; only that seller may edit or remove an available listing.
-- A purchase is a simulated **cash on delivery** order. It changes the product to `SOLD` immediately so another buyer cannot order it.
-- Product listings can include an optional JPG, PNG, or GIF image up to 5 MB. The image is kept in memory for this run and resets when the app closes.
-- A placed order may be cancelled by its buyer or seller; cancellation restores the product to `AVAILABLE`. Completed/cancelled orders cannot be cancelled again.
-- The buyer or seller can mark a placed order completed after the exchange.
-- Students can save available listings to a personal Wishlist for the current app session.
-- There is no administrator role, notification system, chat, real payment processing, persistent storage, or multi-device synchronization in this agreed scope.
-
-Passwords exist only in memory for the local login flow. This is not production authentication or secure credential storage.
-
-## Main navigation
-
-- **Browse products:** Search and filter all available student listings. Open a full listing view, save an item, or continue to cash-on-delivery checkout.
-- **Wishlist:** Revisit saved available listings and remove items you no longer want to keep.
-- **My items:** View active and sold listings that belong to the signed-in student. Edit or remove available listings, or create a new listing.
-- **My orders:** Track purchases and sales, inspect the selected item's details, cancel a placed order, or mark an exchange completed.
-- **Profile:** View the signed-in account and the session-only storage note.
-
-## OOP design
-
-`User` is an abstract parent class for common account details: ID, name, email, password verification, and login-related behavior. `Student` extends `User` and adds student ID, department, and year. A student may be the buyer in one order and the seller in another, so buyer and seller are order roles rather than separate account classes.
-
-## Run it and check the UI
-
-From the workspace parent folder (`C:\Users\darkm\OneDrive\Desktop\campus marketplace`), run these commands. The first command changes into the project folder; keep that PowerShell window there for both compile and launch:
+From the project root:
 
 ```powershell
 Set-Location .\CampusMarketplace_GUI
 $sources = Get-ChildItem src/main/java -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-javac -d out $sources
-Copy-Item -Recurse .\src\main\resources\* .\out
+javac -encoding UTF-8 -d out $sources
+Copy-Item -Recurse -Force .\src\main\resources\* .\out
 java -cp out edu.campusmarketplace.Main
 ```
 
-The login screen shows two starter accounts. Both use password `campus123`:
+### Pre-Seeded Starter Accounts (Password: `campus123`)
 
-- Seller: `maya@campus.local`
-- Buyer: `arjun@campus.local`
+| Student | Email | Department & Year | Starter "My Items" |
+| :--- | :--- | :--- | :--- |
+| **Maya Rao** | `maya@campus.local` | Computer Science, Year 3 | 7 items (Books, Desk Lamp, Lab Coat, etc.) |
+| **Arjun Mehta** | `arjun@campus.local` | Electronics, Year 2 | 7 items (Mouse, Calculator, USB-C Hub, Fan, etc.) |
+| **Rohan Kumar** | `rohan@campus.local` | Mechanical Engg, Year 4 | 6 items (Mini Drafter, Kettle, Badminton, etc.) |
+| **Sneha Patel** | `sneha@campus.local` | Information Tech, Year 1 | 6 items (Headphones, Backpack, Organizer, etc.) |
 
-Suggested UI walkthrough:
+> **Note:** The Login dialog comes pre-filled with `maya@campus.local` / `campus123` for instant 1-click access. You can also sign in or create an account with **any custom email**—the system will automatically provision starter items and pre-populate your wishlist so your marketplace is never empty!
 
-1. Log in as the seller. Browse the product cards, open a detail view, and try editing a listing or adding one. The listing form lets you choose a photo and preview it before saving.
-2. Log out and log in as the buyer. Buy the textbook using its **Buy · COD** button. The product should disappear from available listings and appear in **My orders** as `PLACED`.
-3. Cancel that order. The textbook should return to the marketplace as available.
-4. Place the order again. Log out, return to the seller account, and mark the order completed from **My orders**.
-5. From Browse products, select the heart button on the desk lamp. Open the **Wishlist** tab to see the saved item, then remove it if needed.
-6. Try signing up with a new email. The new account can also list and buy products during this run.
+---
 
-Close and relaunch the app to reset the in-memory data to the seeded starter accounts and listings.
+## Key Features
 
-## Project layout
+### 1. 7 Student-Centric Categories
+- **Books & Notes:** Textbooks, handwritten revision guides, solved question banks.
+- **Electronics & Gadgets:** Calculators, wireless mice, multiport adapters, headphones.
+- **Lab & Engineering Tools:** Mini drafters, wooden drawing boards, chemistry lab coats.
+- **Hostel & Dorm Essentials:** Fast-boiling kettles, eye-care study lamps, multi-plug surge strips.
+- **Fashion & Bags:** Waterproof campus laptop backpacks.
+- **Sports & Fitness:** Badminton sets, non-slip yoga/exercise mats, shaker bottles.
+- **Other Essentials:** Insulated water bottles, thermal containers.
+
+### 2. High-Resolution Bundled Visual Catalog
+- 24 active student listings pre-seeded across all 7 categories.
+- Built-in photo assets for books, lamps, mice, calculators, drafters, kettles, headphones, and backpacks.
+- High-fidelity aspect-ratio image scaling with clean card clipping and hover states.
+
+### 3. Cash on Delivery (COD) Checkout
+- Orders can be placed immediately with simulated Cash on Delivery.
+- Placed orders mark the item `SOLD` to prevent duplicate orders.
+- Orders can be tracked, marked completed upon campus handoff, or cancelled (which returns the item to available status).
+
+### 4. Campus Item Barter & Swap
+- Listings can be marked with `Open to swap / exchange with other student's item` along with barter preferences.
+- Items open to barter show a distinctive teal **SWAP OK** badge.
+- Buyers can propose a trade by choosing one of their own active listings and specifying a proposed meetup spot and time (e.g., *"Central Library foyer, 4:30 PM"*).
+- When accepted, both products transition to `EXCHANGED` status and appear under **My orders**. Cancelling restores both items back to `AVAILABLE`.
+
+### 5. Chat & Meetup Coordination
+- Buyers can click **Chat with Seller** on any listing to send their phone number and a meetup proposal.
+- Includes 1-click quick message chips (e.g., *"Hi, is this still available?"*, *"Can we meet outside the Central Library today?"*).
+
+### 6. Seller Experience Badges & Reputation
+- Buyers can rate sellers from 1 to 5 stars upon completing an order.
+- Supports campus experience badges:
+  - `Item as described`
+  - `On-time meetup`
+  - `Tested in person`
+  - `Quick response`
+  - `Friendly senior`
+  - `Fair price`
+- Average seller ratings and recent reviews are displayed directly on product cards, product details, and the Home feed.
+
+---
+
+## Application Structure & Navigation
+
+- **Home:** Clean introduction banner, quick navigation pills, and verified campus student review experiences.
+- **Browse products:** Real-time search, category dropdown filter, and `[✓] Swaps only` toggle. Click on any card for full details, chat, wishlist saving, COD order, or exchange proposal.
+- **Wishlist:** Revisit saved items.
+- **My items:** Full inventory management for the logged-in student. Shows listed items with Edit, Remove, and Details actions.
+- **My orders:** Split-view orders table and inspection panel displaying Cash on Delivery and Barter swap agreements.
+- **Profile:** Account info (Student ID, department, year, phone) and seller reputation badge summary.
+
+---
+
+## Object-Oriented Programming (OOP) Architecture
+
+| OOP Principle | Implementation in Project |
+| :--- | :--- |
+| **Encapsulation** | Models (`User`, `Student`, `Product`, `Order`, `Review`, `Wishlist`) maintain private fields with validation in constructors and explicit getters/mutators. |
+| **Inheritance** | `Student` extends abstract `User` to inherit identity, email, and password authentication, while adding academic fields (department, student ID, year, phone). |
+| **Polymorphism** | `User` instances can be handled interchangeably; UI event listeners (`ProductCardListener`) decouple component actions from business logic. |
+| **Abstraction** | `MarketplaceRepository` specifies storage contracts, implemented by `InMemoryMarketplaceRepository`. `MarketplaceService` abstracts all transaction rules away from Swing UI components. |
+| **Composition** | A `Student` has-a `Wishlist`; an `Order` references a `Product`, buyer, seller, and optional trade product. |
+| **Enumerations** | `ProductStatus` (`AVAILABLE`, `SOLD`, `EXCHANGED`) and `OrderStatus` (`PLACED`, `COMPLETED`, `CANCELLED`) guarantee type-safe domain states. |
+
+---
+
+## File Layout
 
 ```text
 CampusMarketplace_GUI/
-├── README.md
+├── README.md                          # Project documentation and guide
+├── CONTEXT.md                         # Technical context and design blueprint
 ├── docs/
-│   ├── design-decisions.md
-│   ├── oop-guide.md
-│   ├── project-memory.md
-│   └── requirements.md
+│   ├── design-decisions.md            # Architecture rationale
+│   ├── oop-guide.md                   # Detailed OOP breakdown
+│   ├── project-memory.md              # Historical iterations & test specifications
+│   └── requirements.md                # Functional requirements
 └── src/
-    └── main/java/edu/campusmarketplace/
-        ├── Main.java
-        ├── enums/       # ProductStatus, OrderStatus
-        ├── model/       # User, Student, Wishlist, Product, Order, Category
-        ├── repository/  # repository boundary and in-memory implementation
-        ├── service/     # signup, listing, wishlist, checkout and cancellation rules
-        └── ui/          # Swing authentication, marketplace, listings and orders screens
+    └── main/
+        ├── java/edu/campusmarketplace/
+        │   ├── Main.java              # Application entry point
+        │   ├── enums/                 # ProductStatus, OrderStatus
+        │   ├── model/                 # User, Student, Product, Order, Review, Wishlist, Category
+        │   ├── repository/            # MarketplaceRepository, InMemoryMarketplaceRepository
+        │   ├── service/               # MarketplaceService (business rules & sample catalog)
+        │   └── ui/                    # Swing UI (MarketplaceFrame, HomePanel, BrowseProductsPanel, ProductCardPanel, UITheme)
+        └── resources/images/          # Bundled PNG photo assets
 ```
