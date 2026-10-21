@@ -119,3 +119,4 @@ javac -encoding UTF-8 -d out $sources
 Copy-Item -Recurse -Force .\src\main\resources\* .\out
 java -cp out edu.campusmarketplace.Main
 ```
+

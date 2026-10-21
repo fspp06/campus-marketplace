@@ -121,3 +121,4 @@ CampusMarketplace_GUI/
         │   └── ui/                    # Swing UI (MarketplaceFrame, HomePanel, BrowseProductsPanel, ProductCardPanel, UITheme)
         └── resources/images/          # Bundled PNG photo assets
 ```
+
