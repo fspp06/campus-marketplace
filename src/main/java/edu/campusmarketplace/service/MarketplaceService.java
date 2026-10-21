@@ -24,7 +24,9 @@ public final class MarketplaceService {
 
     public MarketplaceService(MarketplaceRepository repository) {
         this.repository = Objects.requireNonNull(repository);
-        seedStarterData();
+        if (repository.products().isEmpty()) {
+            seedStarterData();
+        }
     }
 
     private void seedStarterData() {

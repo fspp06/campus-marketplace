@@ -225,6 +225,12 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
     @Override
     public void addStudent(Student student) {
         Objects.requireNonNull(student);
+        Optional<Student> existing = studentByEmail(student.getEmail());
+        if (existing.isPresent()) {
+            students.put(existing.get().getId(), existing.get());
+            return;
+        }
+
         students.put(student.getId(), student);
 
         String sql = "INSERT INTO students (id, name, email, password, student_id, department, year, phone_number) " +
@@ -271,6 +277,14 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
         Objects.requireNonNull(product);
         products.put(product.getId(), product);
 
+        UUID sellerId = product.getSeller().getId();
+        Optional<Student> regSeller = studentByEmail(product.getSeller().getEmail());
+        if (regSeller.isPresent()) {
+            sellerId = regSeller.get().getId();
+        } else {
+            addStudent(product.getSeller());
+        }
+
         String sql = "INSERT INTO products (id, seller_id, name, price, description, category_name, status, image_bytes, open_to_exchange, exchange_preference) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE name=VALUES(name), price=VALUES(price), description=VALUES(description), " +
@@ -280,7 +294,7 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, product.getId().toString());
-            ps.setString(2, product.getSeller().getId().toString());
+            ps.setString(2, sellerId.toString());
             ps.setString(3, product.getName());
             ps.setDouble(4, product.getPrice());
             ps.setString(5, product.getDescription());
@@ -323,6 +337,16 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
         Objects.requireNonNull(order);
         orders.put(order.getId(), order);
 
+        UUID buyerId = order.getBuyer().getId();
+        Optional<Student> regBuyer = studentByEmail(order.getBuyer().getEmail());
+        if (regBuyer.isPresent()) buyerId = regBuyer.get().getId();
+        else addStudent(order.getBuyer());
+
+        UUID sellerId = order.getSeller().getId();
+        Optional<Student> regSeller = studentByEmail(order.getSeller().getEmail());
+        if (regSeller.isPresent()) sellerId = regSeller.get().getId();
+        else addStudent(order.getSeller());
+
         String sql = "INSERT INTO orders (id, product_id, buyer_id, seller_id, offered_product_id, meetup_notes, status, total) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE status=VALUES(status)";
@@ -331,8 +355,8 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, order.getId().toString());
             ps.setString(2, order.getProduct().getId().toString());
-            ps.setString(3, order.getBuyer().getId().toString());
-            ps.setString(4, order.getSeller().getId().toString());
+            ps.setString(3, buyerId.toString());
+            ps.setString(4, sellerId.toString());
             ps.setString(5, order.getOfferedProduct() != null ? order.getOfferedProduct().getId().toString() : null);
             ps.setString(6, order.getMeetupNotes());
             ps.setString(7, order.getStatus().name());
@@ -359,14 +383,24 @@ public final class MySqlMarketplaceRepository implements MarketplaceRepository {
         Objects.requireNonNull(review);
         reviews.put(review.getId(), review);
 
+        UUID sellerId = review.getSeller().getId();
+        Optional<Student> regSeller = studentByEmail(review.getSeller().getEmail());
+        if (regSeller.isPresent()) sellerId = regSeller.get().getId();
+        else addStudent(review.getSeller());
+
+        UUID reviewerId = review.getReviewer().getId();
+        Optional<Student> regReviewer = studentByEmail(review.getReviewer().getEmail());
+        if (regReviewer.isPresent()) reviewerId = regReviewer.get().getId();
+        else addStudent(review.getReviewer());
+
         String sql = "INSERT INTO reviews (id, seller_id, reviewer_id, product_id, rating, comment, badges) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, review.getId().toString());
-            ps.setString(2, review.getSeller().getId().toString());
-            ps.setString(3, review.getReviewer().getId().toString());
+            ps.setString(2, sellerId.toString());
+            ps.setString(3, reviewerId.toString());
             ps.setString(4, review.getProduct().getId().toString());
             ps.setInt(5, review.getRating());
             ps.setString(6, review.getComment());
