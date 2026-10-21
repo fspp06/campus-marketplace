@@ -9,7 +9,7 @@ import java.util.UUID;
  * Associated with the seller (for their reputation), the reviewer (buyer), and the product (for deal context).
  */
 public final class Review {
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private final Student seller;
     private final Student reviewer;
     private final Product product;
@@ -19,16 +19,21 @@ public final class Review {
     private final LocalDateTime createdAt;
 
     public Review(Student seller, Student reviewer, Product product, int rating, String comment, List<String> tags) {
+        this(UUID.randomUUID(), seller, reviewer, product, rating, comment, tags, LocalDateTime.now());
+    }
+
+    public Review(UUID id, Student seller, Student reviewer, Product product, int rating, String comment, List<String> tags, LocalDateTime createdAt) {
         if (seller == null) throw new IllegalArgumentException("Seller is required.");
         if (reviewer == null) throw new IllegalArgumentException("Reviewer is required.");
         if (rating < 1 || rating > 5) throw new IllegalArgumentException("Rating must be between 1 and 5.");
+        this.id = id != null ? id : UUID.randomUUID();
         this.seller = seller;
         this.reviewer = reviewer;
         this.product = product;
         this.rating = rating;
         this.comment = (comment == null) ? "" : comment.trim();
         this.tags = (tags == null) ? List.of() : List.copyOf(tags);
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
     }
 
     public Review(Product product, Student reviewer, int rating, String comment) {

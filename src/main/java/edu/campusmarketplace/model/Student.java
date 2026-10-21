@@ -1,5 +1,7 @@
 package edu.campusmarketplace.model;
 
+import java.util.UUID;
+
 /** A campus account. It inherits common login details from User. */
 public final class Student extends User {
     private final String studentId;
@@ -9,7 +11,11 @@ public final class Student extends User {
     private final Wishlist wishlist;
 
     public Student(String name, String email, String password, String studentId, String department, int year, String phoneNumber) {
-        super(name, email, password);
+        this(UUID.randomUUID(), name, email, password, studentId, department, year, phoneNumber);
+    }
+
+    public Student(UUID id, String name, String email, String password, String studentId, String department, int year, String phoneNumber) {
+        super(id, name, email, password);
         if (studentId == null || studentId.isBlank()) throw new IllegalArgumentException("Student ID is required.");
         if (department == null || department.isBlank()) throw new IllegalArgumentException("Department is required.");
         if (year < 1 || year > 6) throw new IllegalArgumentException("Year must be between 1 and 6.");

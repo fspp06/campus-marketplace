@@ -4,7 +4,7 @@ import edu.campusmarketplace.enums.ProductStatus;
 import java.util.UUID;
 
 public final class Product {
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private final Student seller;
     private String name, description;
     private double price;
@@ -24,9 +24,16 @@ public final class Product {
 
     public Product(Student seller, String name, double price, String description, Category category, byte[] imageBytes,
                    boolean openToExchange, String exchangePreference) {
+        this(UUID.randomUUID(), seller, name, price, description, category, imageBytes, openToExchange, exchangePreference, ProductStatus.AVAILABLE);
+    }
+
+    public Product(UUID id, Student seller, String name, double price, String description, Category category, byte[] imageBytes,
+                   boolean openToExchange, String exchangePreference, ProductStatus status) {
+        this.id = id != null ? id : UUID.randomUUID();
         this.seller = seller;
         this.openToExchange = openToExchange;
         this.exchangePreference = exchangePreference == null ? "" : exchangePreference.trim();
+        this.status = status != null ? status : ProductStatus.AVAILABLE;
         update(name, price, description, category, imageBytes);
     }
 

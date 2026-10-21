@@ -4,15 +4,20 @@ import java.util.UUID;
 
 /** Common account details shared by every type of marketplace user. */
 public abstract class User {
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private final String name;
     private final String email;
     private final String password;
 
     protected User(String name, String email, String password) {
+        this(UUID.randomUUID(), name, email, password);
+    }
+
+    protected User(UUID id, String name, String email, String password) {
         if (name == null || name.isBlank()) throw new IllegalArgumentException("Name is required.");
         if (email == null || !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) throw new IllegalArgumentException("Enter a valid email.");
         if (password == null || password.length() < 4) throw new IllegalArgumentException("Password must have at least 4 characters.");
+        this.id = id != null ? id : UUID.randomUUID();
         this.name = name.trim();
         this.email = email.trim().toLowerCase();
         this.password = password;

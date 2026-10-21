@@ -11,8 +11,10 @@ The application operates without external database or network dependencies. All 
 - **Language / Runtime:** Java 17+ (Uses Records, Pattern Matching, Switch Expressions, and Modern Collections API).
 - **GUI Framework:** Java Swing (`javax.swing.*`, `java.awt.*`) customized with modern design tokens (inspired by Notion, Airbnb, and Vinted).
 - **Typography:** Adaptive font resolver prioritized for high-readability (`Segoe UI`, `Inter`, `Helvetica Neue`, `Arial`).
-- **Data Persistence:** In-Memory Repository (`InMemoryMarketplaceRepository`).
-- **Zero Third-Party Dependencies:** Runs out-of-the-box on standard JDK without Maven/Gradle/external JAR requirements.
+- **Data Persistence:** Dual-mode Persistence Architecture:
+  - **MySQL 8.0+ Database:** (`MySqlMarketplaceRepository` via JDBC and `schema.sql`) for real persistent disk storage.
+  - **In-Memory Fallback:** (`InMemoryMarketplaceRepository`) automatically active if MySQL server is offline.
+- **Driver:** Bundled `lib/mysql-connector-j.jar`.
 
 ---
 
@@ -115,8 +117,8 @@ To ensure smooth evaluation and live presentations:
 ```powershell
 Set-Location .\CampusMarketplace_GUI
 $sources = Get-ChildItem src/main/java -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-javac -encoding UTF-8 -d out $sources
+javac -encoding UTF-8 -cp "lib/*" -d out $sources
 Copy-Item -Recurse -Force .\src\main\resources\* .\out
-java -cp out edu.campusmarketplace.Main
+java -cp "out;lib/*" edu.campusmarketplace.Main
 ```
 

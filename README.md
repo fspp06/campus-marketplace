@@ -1,8 +1,6 @@
 # Campus Marketplace
 
-A production-grade Java Swing desktop marketplace simulation designed specifically for university campus communities. Students can buy, sell, barter/swap items, coordinate campus meetups, and build peer seller reputation.
-
-Data lives in memory during the application session and resets on restart. Each laptop runs an independent instance without requiring any external servers, database setup, or third-party dependencies.
+A production-grade Java Swing desktop marketplace simulation designed specifically for university campus communities. Students can buy, sell, barter/swap items, coordinate campus meetups, build peer seller reputation, and persist data in **MySQL Database** (with automatic in-memory fallback).
 
 ---
 
@@ -13,10 +11,23 @@ From the project root:
 ```powershell
 Set-Location .\CampusMarketplace_GUI
 $sources = Get-ChildItem src/main/java -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-javac -encoding UTF-8 -d out $sources
+javac -encoding UTF-8 -cp "lib/*" -d out $sources
 Copy-Item -Recurse -Force .\src\main\resources\* .\out
-java -cp out edu.campusmarketplace.Main
+java -cp "out;lib/*" edu.campusmarketplace.Main
 ```
+
+### MySQL Database Integration
+- **Database Engine:** MySQL 8.0+
+- **Database Name:** `campus_marketplace`
+- **Driver:** Bundled in `lib/mysql-connector-j.jar` (No external download needed!)
+- **Setup Script:** `schema.sql` (Creates all tables: `students`, `products`, `orders`, `reviews`, `wishlist`)
+- **Connection Config:** Located in `src/main/resources/db.properties`:
+  ```properties
+  db.url=jdbc:mysql://localhost:3306/campus_marketplace?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+  db.user=root
+  db.password=root
+  ```
+- **Smart Dual-Mode Fallback:** If MySQL is running on `localhost:3306`, all listings, accounts, orders, and reviews are saved directly to MySQL. If MySQL is offline (e.g. running on an evaluator's laptop without MySQL), the app automatically falls back to in-memory mode so it **never crashes**!
 
 ### Pre-Seeded Starter Accounts (Password: `campus123`)
 
